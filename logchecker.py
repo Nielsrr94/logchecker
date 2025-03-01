@@ -16,7 +16,7 @@ timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
 
 # Iterate over all files in the current directory
 for filename in os.listdir(current_directory):
-    if filename.endswith(".txt") and "log" in filename:
+    if filename.endswith(".txt") and "log" and "logcheck" not in filename:
         with open(os.path.join(current_directory, filename), 'r') as file:
             lines = file.readlines()
         
@@ -26,6 +26,9 @@ for filename in os.listdir(current_directory):
             for i, line in enumerate(lines):
                 for keyword in keywords:
                     if keyword in line:
+                        output_file.write("="*40 + "\n")
+                        output_file.write("LOG CHECKER REPORT\n")
+                        output_file.write("="*40 + "\n\n")
                         output_file.write(f"Keyword: {keyword}\n")
                         output_file.write(f"Line: {line.strip()}\n")
                         output_file.write(f"File: {os.path.join(current_directory, filename)}\n")
