@@ -7,25 +7,16 @@ keywords = ["error", "fail", "warning"]
 
 # Get the directory from the user
 user_input = input("Enter the directory path to search for log files (or type 'here' to use the current directory): ")
-if user_input.lower() == "here":
-    current_directory = os.path.dirname(os.path.abspath(__file__))
-else:
-    current_directory = user_input
+current_directory = os.path.dirname(os.path.abspath(__file__)) if user_input.lower() == "here" else user_input
 
 # Get the current timestamp
 timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
 
-# Initialize a dictionary to keep track of keyword occurrences
+# Initialize dictionaries and counters
 keyword_counts = {keyword: 0 for keyword in keywords}
-
-# Initialize a counter for the number of files checked
-files_checked = 0
-
-# Initialize a counter for the number of files with at least one keyword
-files_with_keywords = 0
-
-# Initialize a dictionary to keep track of keyword occurrences per file
 file_keyword_counts = {}
+files_checked = 0
+files_with_keywords = 0
 
 # Function to process a file
 def process_file(file_path, filename):
