@@ -73,8 +73,11 @@ percentage_files_with_keywords = (files_with_keywords / files_checked) * 100 if 
 keyword_percentages = {keyword: (count / files_checked) * 100 if files_checked > 0 else 0 for keyword, count in keyword_counts.items()}
 
 # Prepare the output file
-output_filename = f"logcheck_{timestamp}.txt"
-with open(os.path.join(current_directory, output_filename), 'w') as output_file:
+output_filename_txt = f"logcheck_{timestamp}.txt"
+output_filename_html = f"logcheck_{timestamp}.html"
+
+# Write to the text file
+with open(os.path.join(current_directory, output_filename_txt), 'w') as output_file:
     # Write the header
     output_file.write("="*60 + "\n")
     output_file.write(f"{'Log Check Report':^40}\n")
@@ -117,3 +120,45 @@ with open(os.path.join(current_directory, output_filename), 'w') as output_file:
                     output_file.write("  " + "-"*38 + "\n")
             output_file.write("="*60 + "\n\n")
             result_number += 1
+
+# Write to the HTML file
+with open(os.path.join(current_directory, output_filename_html), 'w') as output_file:
+    # Write the header
+    output_file.write("<html><head><title>Log Check Report</title></head><body>")
+    output_file.write("<h1 style='text-align:center;'>Log Check Report</h1>")
+    human_readable_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    output_file.write(f"<p><strong>Report created:</strong> {human_readable_timestamp}</p>")
+    output_file.write("<hr>")
+    
+    # Write the summary of keyword occurrences
+    total_keywords_found = sum(keyword_counts.values())
+    output_file.write("<h2>Summary of Keyword Occurrences</h2>")
+    output_file.write(f"<p><strong>Files Checked:</strong> {files_checked}</p>")
+    output_file.write(f"<p><strong>Total Keywords Found:</strong> {total_keywords_found}</p>")
+    output_file.write(f"<p><strong>Files with Keywords:</strong> {files_with_keywords} ({percentage_files_with_keywords:.2f}%)</p>")
+    output_file.write("<ul>")
+    for keyword, count in keyword_counts.items():
+        output_file.write(f"<li><strong>Keyword:</strong> {keyword} - <strong>Occurrences:</strong> {count} ({keyword_percentages[keyword]:.2f}%)</li>")
+    output_file.write("</ul>")
+    output_file.write("<hr>")
+    
+    # Write the results per logfile
+    output_file.write("<h2>Detailed Log File Analysis</h2>")
+    
+    result_number = 1
+    for filename, keywords_dict in file_keyword_counts.items():
+        if any(len(lines) > 0 for lines in keywords_dict.values()):
+            output_file.write("<div style='border:1px solid #000; padding:10px; margin-bottom:10px;'>")
+            output_file.write(f"<h3>Result Number: {result_number}</h3>")
+            output_file.write(f"<p><strong>File:</strong> {filename}</p>")
+            for keyword, lines in keywords_dict.items():
+                if lines:
+                    output_file.write(f"<p><strong>Keyword:</strong> {keyword} - <strong>Occurrences:</strong> {len(lines)}</p>")
+                    output_file.write("<ul>")
+                    for line_num, line in lines:
+                        output_file.write(f"<li><strong>Line {line_num}:</strong> {line}</li>")
+                    output_file.write("</ul>")
+            output_file.write("</div>")
+            result_number += 1
+    
+    output_file.write("</body></html>")
