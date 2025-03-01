@@ -1,0 +1,15 @@
+Log Check Report
+Timestamp: 20250301201218
+Files Checked: 1
+========================================
+
+Total Keywords Found: 1
+Keyword: error, Occurrences: 1
+Keyword: fail, Occurrences: 0
+Keyword: warning, Occurrences: 0
+========================================
+
+File: dummylog.txt
+  Keyword: error, Occurrences: 1
+    Line: error
+
