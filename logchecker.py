@@ -19,10 +19,10 @@ files_checked = 0
 files_with_keyphrases = 0
 
 # Function to process a file
-def process_file(file_path, filename):
+def process_file(file_path):
     global files_checked, files_with_keyphrases
     files_checked += 1
-    file_keyphrase_counts[filename] = {keyphrase: [] for keyphrase in keyphrases}
+    file_keyphrase_counts[file_path] = {keyphrase: [] for keyphrase in keyphrases}
     with open(file_path, 'r') as file:
         lines = file.readlines()
     
@@ -31,7 +31,7 @@ def process_file(file_path, filename):
     for i, line in enumerate(lines):
         for keyphrase in keyphrases:
             if keyphrase in line:
-                file_keyphrase_counts[filename][keyphrase].append((i + 1, line.strip()))
+                file_keyphrase_counts[file_path][keyphrase].append((i + 1, line.strip()))
                 file_has_keyphrases = True
                 unique_keyphrases.add(keyphrase)
     
@@ -41,32 +41,33 @@ def process_file(file_path, filename):
     if file_has_keyphrases:
         files_with_keyphrases += 1
 
-# Iterate over all files in the current directory
-for filename in os.listdir(current_directory):
-    file_path = os.path.join(current_directory, filename)
-    if filename.endswith(".txt") and "log" and "logcheck" not in filename:
-        process_file(file_path, filename)
-    elif filename.endswith(".zip"):
-        with zipfile.ZipFile(file_path, 'r') as zip_ref:
-            for zip_info in zip_ref.infolist():
-                if zip_info.filename.endswith(".txt"):
-                    with zip_ref.open(zip_info) as file:
-                        lines = file.readlines()
-                        files_checked += 1
-                        file_keyphrase_counts[zip_info.filename] = {keyphrase: [] for keyphrase in keyphrases}
-                        file_has_keyphrases = False
-                        unique_keyphrases = set()
-                        for i, line in enumerate(lines):
-                            line = line.decode('utf-8')
-                            for keyphrase in keyphrases:
-                                if keyphrase in line:
-                                    file_keyphrase_counts[zip_info.filename][keyphrase].append((i + 1, line.strip()))
-                                    file_has_keyphrases = True
-                                    unique_keyphrases.add(keyphrase)
-                        for keyphrase in unique_keyphrases:
-                            keyphrase_counts[keyphrase] += 1
-                        if file_has_keyphrases:
-                            files_with_keyphrases += 1
+# Iterate over all files in the current directory and subdirectories
+for root, dirs, files in os.walk(current_directory):
+    for filename in files:
+        file_path = os.path.join(root, filename)
+        if filename.endswith(".txt") and "log" and "logcheck" not in filename:
+            process_file(file_path)
+        elif filename.endswith(".zip"):
+            with zipfile.ZipFile(file_path, 'r') as zip_ref:
+                for zip_info in zip_ref.infolist():
+                    if zip_info.filename.endswith(".txt"):
+                        with zip_ref.open(zip_info) as file:
+                            lines = file.readlines()
+                            files_checked += 1
+                            file_keyphrase_counts[zip_info.filename] = {keyphrase: [] for keyphrase in keyphrases}
+                            file_has_keyphrases = False
+                            unique_keyphrases = set()
+                            for i, line in enumerate(lines):
+                                line = line.decode('utf-8')
+                                for keyphrase in keyphrases:
+                                    if keyphrase in line:
+                                        file_keyphrase_counts[zip_info.filename][keyphrase].append((i + 1, line.strip()))
+                                        file_has_keyphrases = True
+                                        unique_keyphrases.add(keyphrase)
+                            for keyphrase in unique_keyphrases:
+                                keyphrase_counts[keyphrase] += 1
+                            if file_has_keyphrases:
+                                files_with_keyphrases += 1
 
 # Calculate percentages
 percentage_files_with_keyphrases = (files_with_keyphrases / files_checked) * 100 if files_checked > 0 else 0
@@ -105,11 +106,11 @@ with open(os.path.join(current_directory, output_filename_txt), 'w') as output_f
     output_file.write("="*80 + "\n\n")
     
     result_number = 1
-    for filename, keyphrases_dict in file_keyphrase_counts.items():
+    for file_path, keyphrases_dict in file_keyphrase_counts.items():
         if any(len(lines) > 0 for lines in keyphrases_dict.values()):
             output_file.write("*"*40 + "\n")
             output_file.write(f"{'Result Number:':<15}{result_number}\n")
-            output_file.write(f"{'File:':<10}{filename}\n")
+            output_file.write(f"{'File:':<10}{file_path}\n")
             output_file.write("-"*80 + "\n")
             for keyphrase, lines in keyphrases_dict.items():
                 if lines:
@@ -146,11 +147,11 @@ with open(os.path.join(current_directory, output_filename_html), 'w') as output_
     output_file.write("<h2>Detailed Log File Analysis</h2>")
     
     result_number = 1
-    for filename, keyphrases_dict in file_keyphrase_counts.items():
+    for file_path, keyphrases_dict in file_keyphrase_counts.items():
         if any(len(lines) > 0 for lines in keyphrases_dict.values()):
             output_file.write("<div style='border:1px solid #000; padding:10px; margin-bottom:10px;'>")
             output_file.write(f"<h3>Result Number: {result_number}</h3>")
-            output_file.write(f"<p><strong>File:</strong> {filename}</p>")
+            output_file.write(f"<p><strong>File:</strong> {file_path}</p>")
             for keyphrase, lines in keyphrases_dict.items():
                 if lines:
                     output_file.write(f"<p><strong>Keyphrase:</strong> {keyphrase} - <strong>Occurrences:</strong> {len(lines)}</p>")

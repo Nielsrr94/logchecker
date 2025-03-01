@@ -1,17 +1,17 @@
 ================================================================================
                       Log Check Report                      
 ================================================================================
-Report created:                          2025-03-02 00:10:15
+Report created:                          2025-03-02 00:24:04
 ================================================================================
 
 ================================================================================
               Summary of Keyphrase Occurrences              
 ================================================================================
 Files Checked:                                             4
-Total Keyphrases Found:                                    4
-Files with Keyphrases:                                     3 (75.00%)
+Total Keyphrases Found:                                    5
+Files with Keyphrases:                                     4 (100.00%)
 --------------------------------------------------------------------------------
-Keyphrase:          error occurred      Occurrences:    2 (50.00%)
+Keyphrase:          error occurred      Occurrences:    3 (75.00%)
 Keyphrase:          failed to start     Occurrences:    1 (25.00%)
 Keyphrase:          warning issued      Occurrences:    1 (25.00%)
 ================================================================================
@@ -22,7 +22,7 @@ Keyphrase:          warning issued      Occurrences:    1 (25.00%)
 
 ****************************************
 Result Number: 1
-File:     dummylog.txt
+File:     c:\Users\nido_\logchecker\logchecker\testing\inputs\dummylog.txt
 --------------------------------------------------------------------------------
   Keyphrase:error occurredOccurrences:    1
   --------------------------------------
@@ -32,7 +32,18 @@ File:     dummylog.txt
 
 ****************************************
 Result Number: 2
-File:     dummylog3.txt
+File:     dummylog2.txt
+--------------------------------------------------------------------------------
+  Keyphrase:error occurredOccurrences:    2
+  --------------------------------------
+    Line 1    : an error occurred in the module abc
+    Line 2    : anerror occurred
+  --------------------------------------
+================================================================================
+
+****************************************
+Result Number: 3
+File:     c:\Users\nido_\logchecker\logchecker\testing\inputs\dummylog3.txt
 --------------------------------------------------------------------------------
   Keyphrase:warning issuedOccurrences:    1
   --------------------------------------
@@ -41,8 +52,8 @@ File:     dummylog3.txt
 ================================================================================
 
 ****************************************
-Result Number: 3
-File:     dummylog4.txt
+Result Number: 4
+File:     c:\Users\nido_\logchecker\logchecker\testing\inputs\dummylog4.txt
 --------------------------------------------------------------------------------
   Keyphrase:error occurredOccurrences:    1
   --------------------------------------
