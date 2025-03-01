@@ -1,0 +1,7 @@
+an error occured in the module abc
+anerror occured
+warning seen 
+fatal 
+fail in line abc
+failsafe
+
