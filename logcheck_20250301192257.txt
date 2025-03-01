@@ -1,0 +1,8 @@
+Keyword: error
+Line: Keyword: error
+File: c:\Users\nido_\logchecker\logchecker\logcheck_20250301191725.txt
+
+Keyword: error
+Line: Line: error
+File: c:\Users\nido_\logchecker\logchecker\logcheck_20250301191725.txt
+

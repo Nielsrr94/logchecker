@@ -4,8 +4,12 @@ import datetime
 # Define the keywords to search for
 keywords = ["error", "fail", "warning"]
 
-# Get the current directory
-current_directory = os.path.dirname(os.path.abspath(__file__))
+# Get the directory from the user
+user_input = input("Enter the directory path to search for log files (or type 'here' to use the current directory): ")
+if user_input.lower() == "here":
+    current_directory = os.path.dirname(os.path.abspath(__file__))
+else:
+    current_directory = user_input
 
 # Get the current timestamp
 timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")

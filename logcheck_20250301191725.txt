@@ -1,0 +1,4 @@
+Keyword: error
+Line: error
+File: c:\Users\nido_\logchecker\logchecker\dummylog.txt
+
