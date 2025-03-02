@@ -2,9 +2,8 @@ asdasdasd
 asdasdasddas
 dasd
 asdasdasddasd
-error occurred in this file
+failed to start the following application in this file : test 
 asdasdasddasdas
-
 error 
 dasdsdas
 dasdasd

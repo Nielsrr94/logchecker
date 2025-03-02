@@ -31,12 +31,11 @@ def process_file(file_path):
     for i, line in enumerate(lines):
         for keyphrase in keyphrases:
             if keyphrase in line:
+                if keyphrase not in unique_keyphrases:
+                    keyphrase_counts[keyphrase] += 1
                 file_keyphrase_counts[file_path][keyphrase].append((i + 1, line.strip()))
                 file_has_keyphrases = True
                 unique_keyphrases.add(keyphrase)
-    
-    for keyphrase in unique_keyphrases:
-        keyphrase_counts[keyphrase] += 1
     
     if file_has_keyphrases:
         files_with_keyphrases += 1
@@ -54,18 +53,19 @@ for root, dirs, files in os.walk(current_directory):
                         with zip_ref.open(zip_info) as file:
                             lines = file.readlines()
                             files_checked += 1
-                            file_keyphrase_counts[zip_info.filename] = {keyphrase: [] for keyphrase in keyphrases}
+                            internal_file_path = f"{file_path} -> {zip_info.filename}"
+                            file_keyphrase_counts[internal_file_path] = {keyphrase: [] for keyphrase in keyphrases}
                             file_has_keyphrases = False
                             unique_keyphrases = set()
                             for i, line in enumerate(lines):
                                 line = line.decode('utf-8')
                                 for keyphrase in keyphrases:
                                     if keyphrase in line:
-                                        file_keyphrase_counts[zip_info.filename][keyphrase].append((i + 1, line.strip()))
+                                        if keyphrase not in unique_keyphrases:
+                                            keyphrase_counts[keyphrase] += 1
+                                        file_keyphrase_counts[internal_file_path][keyphrase].append((i + 1, line.strip()))
                                         file_has_keyphrases = True
                                         unique_keyphrases.add(keyphrase)
-                            for keyphrase in unique_keyphrases:
-                                keyphrase_counts[keyphrase] += 1
                             if file_has_keyphrases:
                                 files_with_keyphrases += 1
 
@@ -80,84 +80,123 @@ output_filename_html = f"logcheck_{timestamp}.html"
 # Write to the text file
 with open(os.path.join(current_directory, output_filename_txt), 'w') as output_file:
     # Write the header
-    output_file.write("="*80 + "\n")
-    output_file.write(f"{'Log Check Report':^60}\n")
-    output_file.write("="*80 + "\n")
+    header = "Log Check Report"
+    output_file.write("="*100 + "\n")
+    output_file.write(f"{header:^{100}}\n")
+    output_file.write("="*100 + "\n")
     human_readable_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    output_file.write(f"{'Report created:':<30}{human_readable_timestamp:>30}\n")
-    output_file.write("="*80 + "\n\n")
+    output_file.write(f"{'Report created:':<50}{human_readable_timestamp:>50}\n")
+    output_file.write("="*100 + "\n\n")
     
     # Write the summary of keyphrase occurrences
     total_keyphrases_found = sum(keyphrase_counts.values())
-    output_file.write("="*80 + "\n")
-    output_file.write(f"{'Summary of Keyphrase Occurrences':^60}\n")
-    output_file.write("="*80 + "\n")
-    output_file.write(f"{'Files Checked:':<30}{files_checked:>30}\n")
-    output_file.write(f"{'Total Keyphrases Found:':<30}{total_keyphrases_found:>30}\n")
-    output_file.write(f"{'Files with Keyphrases:':<30}{files_with_keyphrases:>30} ({percentage_files_with_keyphrases:.2f}%)\n")
-    output_file.write("-"*80 + "\n")
+    unique_keyphrases_found = sum(1 for count in keyphrase_counts.values() if count > 0)
+    summary_header = "Summary of Keyphrase Occurrences"
+    output_file.write("="*100 + "\n")
+    output_file.write(f"{summary_header:^{100}}\n")
+    output_file.write("="*100 + "\n")
+    output_file.write(f"{'Files Checked:':<50}{files_checked:>50}\n")
+    output_file.write(f"{'Total Keyphrases Found:':<50}{total_keyphrases_found:>50}\n")
+    output_file.write(f"{'Unique Keyphrases Found:':<50}{unique_keyphrases_found:>50}\n")
+    files_with_keyphrases_str = f"{files_with_keyphrases} ({percentage_files_with_keyphrases:.2f}%)"
+    output_file.write(f"{'Files with Keyphrases:':<50}{files_with_keyphrases_str:>50}\n")
+    output_file.write("-"*100 + "\n")
     for keyphrase, count in keyphrase_counts.items():
-        output_file.write(f"{'Keyphrase:':<20}{keyphrase:<20}{'Occurrences:':<10}{count:>5} ({keyphrase_percentages[keyphrase]:.2f}%)\n")
-    output_file.write("="*80 + "\n\n")
+        keyphrase_str = f"{'Keyphrase:':<25}{keyphrase:<50}{'Files:'}{count:>10} ({keyphrase_percentages[keyphrase]:.2f}%)"
+        output_file.write(f"{keyphrase_str:<100}\n")
+        # Add the first file link for each keyphrase
+        for file_path, keyphrases_dict in file_keyphrase_counts.items():
+            if keyphrase in keyphrases_dict and keyphrases_dict[keyphrase]:
+                output_file.write(f"{'First occurrence in file:':<25}{file_path}\n")
+                break
+        output_file.write("\n")
+    output_file.write("="*100 + "\n\n")
     
     # Write the results per logfile
-    output_file.write("="*80 + "\n")
-    output_file.write(f"{'Detailed Log File Analysis':^60}\n")
-    output_file.write("="*80 + "\n\n")
+    detailed_header = "Detailed Log File Analysis"
+    output_file.write("="*100 + "\n")
+    output_file.write(f"{detailed_header:^{100}}\n")
+    output_file.write("="*100 + "\n\n")
     
     result_number = 1
     for file_path, keyphrases_dict in file_keyphrase_counts.items():
         if any(len(lines) > 0 for lines in keyphrases_dict.values()):
-            output_file.write("*"*40 + "\n")
-            output_file.write(f"{'Result Number:':<15}{result_number}\n")
-            output_file.write(f"{'File:':<10}{file_path}\n")
-            output_file.write("-"*80 + "\n")
+            output_file.write("*"*100 + "\n")
+            output_file.write(f"{'Result Number:':<25}{result_number}\n")
+            output_file.write(f"{'File:':<15}{file_path}\n")
+            output_file.write("-"*100 + "\n")
+            # Add summary of which keywords were found
+            found_keyphrases = [keyphrase for keyphrase, lines in keyphrases_dict.items() if lines]
+            output_file.write(f"{'Keyphrases Found:':<25}{', '.join(found_keyphrases)}\n")
+            output_file.write("-"*100 + "\n")
             for keyphrase, lines in keyphrases_dict.items():
                 if lines:
-                    output_file.write(f"  {'Keyphrase:':<10}{keyphrase:<10}{'Occurrences:':<10}{len(lines):>5}\n")
-                    output_file.write("  " + "-"*38 + "\n")
+                    keyphrase_header = f"  {'Keyphrase:':<25}{keyphrase:<50}{'Occurrences:':<15}{len(lines):>10}"
+                    output_file.write(f"{keyphrase_header:<100}\n")
+                    output_file.write("  " + "-"*48 + "\n")
                     for line_num, line in lines:
-                        output_file.write(f"    {'Line':<5}{line_num:<5}: {line}\n")
-                    output_file.write("  " + "-"*38 + "\n")
-            output_file.write("="*80 + "\n\n")
+                        truncated_line = (line[:90] + '...') if len(line) > 90 else line
+                        output_file.write(f"    {'Line':<5}{line_num:<5}: {truncated_line}\n")
+                    output_file.write("  " + "-"*48 + "\n")
+            output_file.write("="*100 + "\n\n")
             result_number += 1
 
 # Write to the HTML file
 with open(os.path.join(current_directory, output_filename_html), 'w') as output_file:
     # Write the header
     output_file.write("<html><head><title>Log Check Report</title></head><body>")
-    output_file.write("<h1 style='text-align:center;'>Log Check Report</h1>")
+    output_file.write("<h1 style='text-align:center; color:blue;'>Log Check Report</h1>")
     human_readable_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     output_file.write(f"<p><strong>Report created:</strong> {human_readable_timestamp}</p>")
     output_file.write("<hr>")
     
     # Write the summary of keyphrase occurrences
     total_keyphrases_found = sum(keyphrase_counts.values())
-    output_file.write("<h2>Summary of Keyphrase Occurrences</h2>")
+    unique_keyphrases_found = sum(1 for count in keyphrase_counts.values() if count > 0)
+    output_file.write("<h2 style='color:green;'>Summary of Keyphrase Occurrences</h2>")
     output_file.write(f"<p><strong>Files Checked:</strong> {files_checked}</p>")
     output_file.write(f"<p><strong>Total Keyphrases Found:</strong> {total_keyphrases_found}</p>")
+    output_file.write(f"<p><strong>Unique Keyphrases Found:</strong> {unique_keyphrases_found}</p>")
     output_file.write(f"<p><strong>Files with Keyphrases:</strong> {files_with_keyphrases} ({percentage_files_with_keyphrases:.2f}%)</p>")
     output_file.write("<ul>")
     for keyphrase, count in keyphrase_counts.items():
-        output_file.write(f"<li><strong>Keyphrase:</strong> {keyphrase} - <strong>Occurrences:</strong> {count} ({keyphrase_percentages[keyphrase]:.2f}%)</li>")
+        output_file.write(f"<li><strong>Keyphrase:</strong> {keyphrase} - <strong>Files:</strong> {count} ({keyphrase_percentages[keyphrase]:.2f}%)</li>")
+        # Add the first file link for each keyphrase
+        for file_path, keyphrases_dict in file_keyphrase_counts.items():
+            if keyphrase in keyphrases_dict and keyphrases_dict[keyphrase]:
+                if " -> " in file_path:
+                    zip_path, internal_file = file_path.split(" -> ")
+                    output_file.write(f"<li><strong>First occurrence in file:</strong> <a href='file:///{zip_path}'>{zip_path}</a> -> {internal_file}</li>")
+                else:
+                    output_file.write(f"<li><strong>First occurrence in file:</strong> <a href='file:///{file_path}'>{file_path}</a></li>")
+                break
+        output_file.write("<br>")
     output_file.write("</ul>")
     output_file.write("<hr>")
     
     # Write the results per logfile
-    output_file.write("<h2>Detailed Log File Analysis</h2>")
+    output_file.write("<h2 style='color:green;'>Detailed Log File Analysis</h2>")
     
     result_number = 1
     for file_path, keyphrases_dict in file_keyphrase_counts.items():
         if any(len(lines) > 0 for lines in keyphrases_dict.values()):
             output_file.write("<div style='border:1px solid #000; padding:10px; margin-bottom:10px;'>")
-            output_file.write(f"<h3>Result Number: {result_number}</h3>")
-            output_file.write(f"<p><strong>File:</strong> {file_path}</p>")
+            output_file.write(f"<h3 style='color:blue;'>Result Number: {result_number}</h3>")
+            if " -> " in file_path:
+                zip_path, internal_file = file_path.split(" -> ")
+                output_file.write(f"<p><strong>File:</strong> <a href='file:///{zip_path}'>{zip_path}</a> -> {internal_file}</p>")
+            else:
+                output_file.write(f"<p><strong>File:</strong> <a href='file:///{file_path}'>{file_path}</a></p>")
+            # Add summary of which keywords were found
+            found_keyphrases = [keyphrase for keyphrase, lines in keyphrases_dict.items() if lines]
+            output_file.write(f"<p><strong>Keyphrases Found:</strong> {', '.join(found_keyphrases)}</p>")
             for keyphrase, lines in keyphrases_dict.items():
                 if lines:
                     output_file.write(f"<p><strong>Keyphrase:</strong> {keyphrase} - <strong>Occurrences:</strong> {len(lines)}</p>")
                     output_file.write("<ul>")
                     for line_num, line in lines:
-                        output_file.write(f"<li><strong>Line {line_num}:</strong> {line}</li>")
+                        highlighted_line = line.replace(keyphrase, f"<span style='color:red;'>{keyphrase}</span>")
+                        output_file.write(f"<li><strong>Line {line_num}:</strong> {highlighted_line}</li>")
                     output_file.write("</ul>")
             output_file.write("</div>")
             result_number += 1
