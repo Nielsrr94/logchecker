@@ -63,6 +63,13 @@ def process_file(file_path):
 user_input = input("Enter the directory path to search for log files (or press Enter to use the current directory): ")
 current_directory = os.path.dirname(os.path.abspath(__file__)) if user_input.strip() == "" else user_input
 
+# Get the common phrase from the user
+common_phrase = ""
+while not common_phrase:
+    common_phrase = input("Enter the common phrase included in the log files: ").strip()
+    if not common_phrase:
+        print("Common phrase cannot be empty. Please enter a valid common phrase.")
+
 # Define the path to the config file
 config_file_path = os.path.join(current_directory, "keyphrases_config.json")
 
@@ -95,12 +102,12 @@ files_with_keyphrases = 0
 for root, dirs, files in os.walk(current_directory):
     for filename in files:
         file_path = os.path.join(root, filename)
-        if filename.endswith(".txt") and "log" and "logcheck" not in filename:
+        if filename.endswith(".txt") and common_phrase in filename and "logcheck" not in filename:
             process_file(file_path)
         elif filename.endswith(".zip"):
             with zipfile.ZipFile(file_path, 'r') as zip_ref:
                 for zip_info in zip_ref.infolist():
-                    if zip_info.filename.endswith(".txt"):
+                    if zip_info.filename.endswith(".txt") and common_phrase in zip_info.filename:
                         with zip_ref.open(zip_info) as file:
                             lines = file.readlines()
                             files_checked += 1
