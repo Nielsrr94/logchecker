@@ -1,13 +1,55 @@
 import os
 import datetime
 import zipfile
+import json
+import random
 
-# Define the keyphrases to search for
-keyphrases = ["error occurred", "failed to start", "warning issued"]
+# Function to create a config file with example keyphrases if it does not exist
+def create_config_file_with_examples(config_path):
+    example_keyphrases = {
+        "keyphrases": ["error occurred", "failed to start", "warning issued"]
+    }
+    with open(config_path, 'w') as config_file:
+        json.dump(example_keyphrases, config_file, indent=4)
+
+# Function to load keyphrases from a config file
+def load_keyphrases_from_config(config_path):
+    if os.path.exists(config_path):
+        with open(config_path, 'r') as config_file:
+            config_data = json.load(config_file)
+            return config_data.get("keyphrases", [])
+    return []
+
+# Function to generate a list of colors
+def generate_colors(num_colors):
+    colors = []
+    for _ in range(num_colors):
+        color = "#{:06x}".format(random.randint(0, 0xFFFFFF))
+        colors.append(color)
+    return colors
 
 # Get the directory from the user
 user_input = input("Enter the directory path to search for log files (or press Enter to use the current directory): ")
 current_directory = os.path.dirname(os.path.abspath(__file__)) if user_input.strip() == "" else user_input
+
+# Define the path to the config file
+config_file_path = os.path.join(current_directory, "keyphrases_config.json")
+
+# Create the config file with example keyphrases if it does not exist
+if not os.path.exists(config_file_path):
+    create_config_file_with_examples(config_file_path)
+
+# Ask the user if they want to use the config file or enter keyphrases manually
+use_config = input("Do you want to use the config file for keyphrases? (yes/no): ").strip().lower()
+
+if use_config == "yes":
+    keyphrases = load_keyphrases_from_config(config_file_path)
+else:
+    keyphrases_input = input("Enter the keyphrases to search for, separated by commas: ")
+    keyphrases = [phrase.strip() for phrase in keyphrases_input.split(",")]
+
+# Generate colors for keyphrases
+keyphrase_colors = {keyphrase: color for keyphrase, color in zip(keyphrases, generate_colors(len(keyphrases)))}
 
 # Get the current timestamp
 timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
@@ -69,6 +111,9 @@ for root, dirs, files in os.walk(current_directory):
                             if file_has_keyphrases:
                                 files_with_keyphrases += 1
 
+# Calculate total keyphrases found
+total_keyphrases_found = sum(keyphrase_counts.values())
+
 # Calculate percentages
 percentage_files_with_keyphrases = (files_with_keyphrases / files_checked) * 100 if files_checked > 0 else 0
 keyphrase_percentages = {keyphrase: (count / files_checked) * 100 if files_checked > 0 else 0 for keyphrase, count in keyphrase_counts.items()}
@@ -77,15 +122,32 @@ keyphrase_percentages = {keyphrase: (count / files_checked) * 100 if files_check
 output_filename_txt = f"logcheck_{timestamp}.txt"
 output_filename_html = f"logcheck_{timestamp}.html"
 
+# Function to generate a list of colors in shades of red, orange, and yellow
+def generate_highlight_colors(num_colors):
+    colors = []
+    for i in range(num_colors):
+        hue = (i * 30) % 360  # Adjust the hue to get different shades
+        color = f"hsl({hue}, 100%, 50%)"
+        colors.append(color)
+    return colors
+
+# Generate colors for keyphrases in shades of red, orange, and yellow
+keyphrase_colors = {keyphrase: color for keyphrase, color in zip(keyphrases, generate_highlight_colors(len(keyphrases)))}
+
 # Write to the HTML file
 with open(os.path.join(current_directory, output_filename_html), 'w') as output_file:
     # Write the header
     output_file.write("<html><head><title>Log Check Report</title>")
     output_file.write("""
     <style>
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: Arial, sans-serif;
+        }
         .collapsible {
-            background-color: #777;
-            color: white;
+            background-color: #333;
+            color: #e0e0e0;
             cursor: pointer;
             padding: 10px;
             width: 100%;
@@ -101,10 +163,13 @@ with open(os.path.join(current_directory, output_filename_html), 'w') as output_
             padding: 0 18px;
             display: none;
             overflow: hidden;
-            background-color: #f1f1f1;
+            background-color: #1e1e1e;
         }
         .highlight {
-            background-color: yellow;
+            background-color: #444;
+        }
+        a {
+            color: #1e90ff;
         }
     </style>
     <script>
@@ -131,7 +196,9 @@ with open(os.path.join(current_directory, output_filename_html), 'w') as output_
     </script>
     </head><body>
     """)
-    output_file.write("<h1 style='text-align:center; color:blue;'>Log Check Report</h1>")
+    report_status = "PASSED" if total_keyphrases_found == 0 else "FAILED"
+    report_status_color = "#00ff00" if total_keyphrases_found == 0 else "#ff0000"
+    output_file.write(f"<h1 style='text-align:center; color:#ffffff;'>Log Check Report - <span style='color:{report_status_color};'>{report_status}</span></h1>")
     human_readable_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     output_file.write(f"<p><strong>Report created:</strong> {human_readable_timestamp}</p>")
     output_file.write("<hr>")
@@ -139,14 +206,14 @@ with open(os.path.join(current_directory, output_filename_html), 'w') as output_
     # Write the summary of keyphrase occurrences
     total_keyphrases_found = sum(keyphrase_counts.values())
     unique_keyphrases_found = sum(1 for count in keyphrase_counts.values() if count > 0)
-    output_file.write("<h2 style='color:green;'>Summary of Keyphrase Occurrences</h2>")
+    output_file.write("<h2 style='color:#00ff00;'>Summary of Keyphrase Occurrences</h2>")
     output_file.write(f"<p><strong>Files Checked:</strong> {files_checked}</p>")
     output_file.write(f"<p><strong>Total Keyphrases Found:</strong> {total_keyphrases_found}</p>")
     output_file.write(f"<p><strong>Unique Keyphrases Found:</strong> {unique_keyphrases_found}</p>")
     output_file.write(f"<p><strong>Files with Keyphrases:</strong> {files_with_keyphrases} ({percentage_files_with_keyphrases:.2f}%)</p>")
     output_file.write("<ul>")
     for keyphrase, count in keyphrase_counts.items():
-        output_file.write(f"<li><strong>Keyphrase:</strong> {keyphrase} - <strong>Files:</strong> {count} ({keyphrase_percentages[keyphrase]:.2f}%)</li>")
+        output_file.write(f"<li><strong>Keyphrase:</strong> <span style='color:{keyphrase_colors[keyphrase]};'>{keyphrase}</span> - <strong>Files:</strong> {count} ({keyphrase_percentages[keyphrase]:.2f}%)</li>")
         # Add the first file link for each keyphrase
         for file_path, keyphrases_dict in file_keyphrase_counts.items():
             if keyphrase in keyphrases_dict and keyphrases_dict[keyphrase]:
@@ -161,24 +228,19 @@ with open(os.path.join(current_directory, output_filename_html), 'w') as output_
     output_file.write("<hr>")
     
     # Write the results per logfile
-    output_file.write("<h2 style='color:green;'>Detailed Log File Analysis</h2>")
+    output_file.write("<h2 style='color:#00ff00;'>Detailed Log File Analysis</h2>")
     output_file.write("<button onclick='toggleAll(true)'>Expand All</button>")
     output_file.write("<button onclick='toggleAll(false)'>Collapse All</button>")
     
     result_number = 1
-    keyphrase_colors = {
-        "error occurred": "red",
-        "failed to start": "orange",
-        "warning issued": "purple"
-    }
     max_occurrences = {keyphrase: 0 for keyphrase in keyphrases}
     max_occurrence_result = {keyphrase: None for keyphrase in keyphrases}
     
     for file_path, keyphrases_dict in file_keyphrase_counts.items():
         if any(len(lines) > 0 for lines in keyphrases_dict.values()):
             keyphrases_found = [keyphrase for keyphrase, lines in keyphrases_dict.items() if lines]
-            keyphrases_summary = ", ".join(keyphrases_found)
-            output_file.write(f"<button class='collapsible' style='color:{keyphrase_colors[keyphrases_found[0]]};'>Result Number: {result_number} - Keyphrases: {keyphrases_summary}</button>")
+            keyphrases_summary = " - ".join([f"<span style='color:{keyphrase_colors[keyphrase]};'>{keyphrase}</span>" for keyphrase in keyphrases_found])
+            output_file.write(f"<button class='collapsible'>Logfile #{result_number} - Keyphrases: {keyphrases_summary}</button>")
             output_file.write("<div class='content'>")
             if " -> " in file_path:
                 zip_path, internal_file = file_path.split(" -> ")
@@ -205,5 +267,6 @@ with open(os.path.join(current_directory, output_filename_html), 'w') as output_
     for keyphrase, result_num in max_occurrence_result.items():
         if result_num:
             output_file.write(f"<script>document.querySelectorAll('.collapsible')[{result_num - 1}].classList.add('highlight');</script>")
+            output_file.write(f"<script>document.querySelectorAll('.collapsible')[{result_num - 1}].innerHTML += ' - <strong>Most occurrences of keyphrase: {keyphrase}</strong>';</script>")
     
     output_file.write("</body></html>")
