@@ -6,8 +6,8 @@ import zipfile
 keyphrases = ["error occurred", "failed to start", "warning issued"]
 
 # Get the directory from the user
-user_input = input("Enter the directory path to search for log files (or type 'here' to use the current directory): ")
-current_directory = os.path.dirname(os.path.abspath(__file__)) if user_input.lower() == "here" else user_input
+user_input = input("Enter the directory path to search for log files (or press Enter to use the current directory): ")
+current_directory = os.path.dirname(os.path.abspath(__file__)) if user_input.strip() == "" else user_input
 
 # Get the current timestamp
 timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
@@ -77,74 +77,60 @@ keyphrase_percentages = {keyphrase: (count / files_checked) * 100 if files_check
 output_filename_txt = f"logcheck_{timestamp}.txt"
 output_filename_html = f"logcheck_{timestamp}.html"
 
-# Write to the text file
-with open(os.path.join(current_directory, output_filename_txt), 'w') as output_file:
-    # Write the header
-    header = "Log Check Report"
-    output_file.write("="*100 + "\n")
-    output_file.write(f"{header:^{100}}\n")
-    output_file.write("="*100 + "\n")
-    human_readable_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    output_file.write(f"{'Report created:':<50}{human_readable_timestamp:>50}\n")
-    output_file.write("="*100 + "\n\n")
-    
-    # Write the summary of keyphrase occurrences
-    total_keyphrases_found = sum(keyphrase_counts.values())
-    unique_keyphrases_found = sum(1 for count in keyphrase_counts.values() if count > 0)
-    summary_header = "Summary of Keyphrase Occurrences"
-    output_file.write("="*100 + "\n")
-    output_file.write(f"{summary_header:^{100}}\n")
-    output_file.write("="*100 + "\n")
-    output_file.write(f"{'Files Checked:':<50}{files_checked:>50}\n")
-    output_file.write(f"{'Total Keyphrases Found:':<50}{total_keyphrases_found:>50}\n")
-    output_file.write(f"{'Unique Keyphrases Found:':<50}{unique_keyphrases_found:>50}\n")
-    files_with_keyphrases_str = f"{files_with_keyphrases} ({percentage_files_with_keyphrases:.2f}%)"
-    output_file.write(f"{'Files with Keyphrases:':<50}{files_with_keyphrases_str:>50}\n")
-    output_file.write("-"*100 + "\n")
-    for keyphrase, count in keyphrase_counts.items():
-        keyphrase_str = f"{'Keyphrase:':<25}{keyphrase:<50}{'Files:'}{count:>10} ({keyphrase_percentages[keyphrase]:.2f}%)"
-        output_file.write(f"{keyphrase_str:<100}\n")
-        # Add the first file link for each keyphrase
-        for file_path, keyphrases_dict in file_keyphrase_counts.items():
-            if keyphrase in keyphrases_dict and keyphrases_dict[keyphrase]:
-                output_file.write(f"{'First occurrence in file:':<25}{file_path}\n")
-                break
-        output_file.write("\n")
-    output_file.write("="*100 + "\n\n")
-    
-    # Write the results per logfile
-    detailed_header = "Detailed Log File Analysis"
-    output_file.write("="*100 + "\n")
-    output_file.write(f"{detailed_header:^{100}}\n")
-    output_file.write("="*100 + "\n\n")
-    
-    result_number = 1
-    for file_path, keyphrases_dict in file_keyphrase_counts.items():
-        if any(len(lines) > 0 for lines in keyphrases_dict.values()):
-            output_file.write("*"*100 + "\n")
-            output_file.write(f"{'Result Number:':<25}{result_number}\n")
-            output_file.write(f"{'File:':<15}{file_path}\n")
-            output_file.write("-"*100 + "\n")
-            # Add summary of which keywords were found
-            found_keyphrases = [keyphrase for keyphrase, lines in keyphrases_dict.items() if lines]
-            output_file.write(f"{'Keyphrases Found:':<25}{', '.join(found_keyphrases)}\n")
-            output_file.write("-"*100 + "\n")
-            for keyphrase, lines in keyphrases_dict.items():
-                if lines:
-                    keyphrase_header = f"  {'Keyphrase:':<25}{keyphrase:<50}{'Occurrences:':<15}{len(lines):>10}"
-                    output_file.write(f"{keyphrase_header:<100}\n")
-                    output_file.write("  " + "-"*48 + "\n")
-                    for line_num, line in lines:
-                        truncated_line = (line[:90] + '...') if len(line) > 90 else line
-                        output_file.write(f"    {'Line':<5}{line_num:<5}: {truncated_line}\n")
-                    output_file.write("  " + "-"*48 + "\n")
-            output_file.write("="*100 + "\n\n")
-            result_number += 1
-
 # Write to the HTML file
 with open(os.path.join(current_directory, output_filename_html), 'w') as output_file:
     # Write the header
-    output_file.write("<html><head><title>Log Check Report</title></head><body>")
+    output_file.write("<html><head><title>Log Check Report</title>")
+    output_file.write("""
+    <style>
+        .collapsible {
+            background-color: #777;
+            color: white;
+            cursor: pointer;
+            padding: 10px;
+            width: 100%;
+            border: none;
+            text-align: left;
+            outline: none;
+            font-size: 15px;
+        }
+        .active, .collapsible:hover {
+            background-color: #555;
+        }
+        .content {
+            padding: 0 18px;
+            display: none;
+            overflow: hidden;
+            background-color: #f1f1f1;
+        }
+        .highlight {
+            background-color: yellow;
+        }
+    </style>
+    <script>
+        function toggleAll(expand) {
+            var contents = document.getElementsByClassName("content");
+            for (var i = 0; i < contents.length; i++) {
+                contents[i].style.display = expand ? "block" : "none";
+            }
+        }
+        document.addEventListener("DOMContentLoaded", function() {
+            var coll = document.getElementsByClassName("collapsible");
+            for (var i = 0; i < coll.length; i++) {
+                coll[i].addEventListener("click", function() {
+                    this.classList.toggle("active");
+                    var content = this.nextElementSibling;
+                    if (content.style.display === "block") {
+                        content.style.display = "none";
+                    } else {
+                        content.style.display = "block";
+                    }
+                });
+            }
+        });
+    </script>
+    </head><body>
+    """)
     output_file.write("<h1 style='text-align:center; color:blue;'>Log Check Report</h1>")
     human_readable_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     output_file.write(f"<p><strong>Report created:</strong> {human_readable_timestamp}</p>")
@@ -176,12 +162,24 @@ with open(os.path.join(current_directory, output_filename_html), 'w') as output_
     
     # Write the results per logfile
     output_file.write("<h2 style='color:green;'>Detailed Log File Analysis</h2>")
+    output_file.write("<button onclick='toggleAll(true)'>Expand All</button>")
+    output_file.write("<button onclick='toggleAll(false)'>Collapse All</button>")
     
     result_number = 1
+    keyphrase_colors = {
+        "error occurred": "red",
+        "failed to start": "orange",
+        "warning issued": "purple"
+    }
+    max_occurrences = {keyphrase: 0 for keyphrase in keyphrases}
+    max_occurrence_result = {keyphrase: None for keyphrase in keyphrases}
+    
     for file_path, keyphrases_dict in file_keyphrase_counts.items():
         if any(len(lines) > 0 for lines in keyphrases_dict.values()):
-            output_file.write("<div style='border:1px solid #000; padding:10px; margin-bottom:10px;'>")
-            output_file.write(f"<h3 style='color:blue;'>Result Number: {result_number}</h3>")
+            keyphrases_found = [keyphrase for keyphrase, lines in keyphrases_dict.items() if lines]
+            keyphrases_summary = ", ".join(keyphrases_found)
+            output_file.write(f"<button class='collapsible' style='color:{keyphrase_colors[keyphrases_found[0]]};'>Result Number: {result_number} - Keyphrases: {keyphrases_summary}</button>")
+            output_file.write("<div class='content'>")
             if " -> " in file_path:
                 zip_path, internal_file = file_path.split(" -> ")
                 output_file.write(f"<p><strong>File:</strong> <a href='file:///{zip_path}'>{zip_path}</a> -> {internal_file}</p>")
@@ -195,10 +193,17 @@ with open(os.path.join(current_directory, output_filename_html), 'w') as output_
                     output_file.write(f"<p><strong>Keyphrase:</strong> {keyphrase} - <strong>Occurrences:</strong> {len(lines)}</p>")
                     output_file.write("<ul>")
                     for line_num, line in lines:
-                        highlighted_line = line.replace(keyphrase, f"<span style='color:red;'>{keyphrase}</span>")
+                        highlighted_line = line.replace(keyphrase, f"<span style='color:{keyphrase_colors[keyphrase]};'>{keyphrase}</span>")
                         output_file.write(f"<li><strong>Line {line_num}:</strong> {highlighted_line}</li>")
                     output_file.write("</ul>")
+                    if len(lines) > max_occurrences[keyphrase]:
+                        max_occurrences[keyphrase] = len(lines)
+                        max_occurrence_result[keyphrase] = result_number
             output_file.write("</div>")
             result_number += 1
+    
+    for keyphrase, result_num in max_occurrence_result.items():
+        if result_num:
+            output_file.write(f"<script>document.querySelectorAll('.collapsible')[{result_num - 1}].classList.add('highlight');</script>")
     
     output_file.write("</body></html>")
