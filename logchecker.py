@@ -205,9 +205,13 @@ with open(os.path.join(current_directory, output_filename_html), 'w') as output_
     """)
     report_status = "PASSED" if total_keyphrases_found == 0 else "FAILED"
     report_status_color = "#00ff00" if total_keyphrases_found == 0 else "#ff0000"
-    output_file.write(f"<h1 style='text-align:center; color:#ffffff;'>Log Check Report - <span style='color:{report_status_color};'>{report_status}</span></h1>")
+    output_file.write(f"<h1 style='text-align:center; color:#ffffff;'>Log Check Report</h1>")
+    output_file.write(f"<h2 style='text-align:center; color:#ffffff;'>Verdict: <span style='color:{report_status_color};'>{report_status}</span></h2>")
     human_readable_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     output_file.write(f"<p><strong>Report created:</strong> {human_readable_timestamp}</p>")
+    output_file.write(f"<p><strong>Logchecker file used:</strong> {os.path.abspath(__file__)}</p>")
+    output_file.write(f"<p><strong>Directory checked:</strong> {current_directory}</p>")
+    output_file.write(f"<p><strong>Keywords checked:</strong> {', '.join(keyphrases)}</p>")
     output_file.write("<hr>")
     
     # Write the summary of keyphrase occurrences
@@ -215,9 +219,9 @@ with open(os.path.join(current_directory, output_filename_html), 'w') as output_
     unique_keyphrases_found = sum(1 for count in keyphrase_counts.values() if count > 0)
     output_file.write("<h2 style='color:#00ff00;'>Summary of Keyphrase Occurrences</h2>")
     output_file.write(f"<p><strong>Files Checked:</strong> {files_checked}</p>")
-    output_file.write(f"<p><strong>Total Keyphrases Found:</strong> {total_keyphrases_found}</p>")
-    output_file.write(f"<p><strong>Unique Keyphrases Found:</strong> {unique_keyphrases_found}</p>")
     output_file.write(f"<p><strong>Files with Keyphrases:</strong> {files_with_keyphrases} ({percentage_files_with_keyphrases:.2f}%)</p>")
+    output_file.write(f"<p><strong>Unique Keyphrases Found:</strong> {unique_keyphrases_found}/{len(keyphrases)}</p>")
+    output_file.write(f"<p><strong>Total Keyphrase Occurances:</strong> {total_keyphrases_found}</p>")
     output_file.write("<ul>")
     
     # Sort keyphrases by occurrence count in descending order
