@@ -40,13 +40,14 @@ if not os.path.exists(config_file_path):
     create_config_file_with_examples(config_file_path)
 
 # Ask the user if they want to use the config file or enter keyphrases manually
-use_config = input("Do you want to use the config file for keyphrases? (yes/no): ").strip().lower()
+use_config = input("Do you want enter a custom list of keyphrases instead of using the config file? (yes/no): ").strip().lower()
 
 if use_config == "yes":
-    keyphrases = load_keyphrases_from_config(config_file_path)
-else:
     keyphrases_input = input("Enter the keyphrases to search for, separated by commas: ")
     keyphrases = [phrase.strip() for phrase in keyphrases_input.split(",")]
+    
+else:
+    keyphrases = load_keyphrases_from_config(config_file_path)
 
 # Generate colors for keyphrases
 keyphrase_colors = {keyphrase: color for keyphrase, color in zip(keyphrases, generate_colors(len(keyphrases)))}
