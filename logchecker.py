@@ -28,38 +28,14 @@ def generate_colors(num_colors):
         colors.append(color)
     return colors
 
-# Get the directory from the user
-user_input = input("Enter the directory path to search for log files (or press Enter to use the current directory): ")
-current_directory = os.path.dirname(os.path.abspath(__file__)) if user_input.strip() == "" else user_input
-
-# Define the path to the config file
-config_file_path = os.path.join(current_directory, "keyphrases_config.json")
-
-# Create the config file with example keyphrases if it does not exist
-if not os.path.exists(config_file_path):
-    create_config_file_with_examples(config_file_path)
-
-# Ask the user if they want to use the config file or enter keyphrases manually
-use_config = input("Do you want enter a custom list of keyphrases instead of using the config file? (yes/no): ").strip().lower()
-
-if use_config == "yes":
-    keyphrases_input = input("Enter the keyphrases to search for, separated by commas: ")
-    keyphrases = [phrase.strip() for phrase in keyphrases_input.split(",")]
-    
-else:
-    keyphrases = load_keyphrases_from_config(config_file_path)
-
-# Generate colors for keyphrases
-keyphrase_colors = {keyphrase: color for keyphrase, color in zip(keyphrases, generate_colors(len(keyphrases)))}
-
-# Get the current timestamp
-timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-
-# Initialize dictionaries and counters
-keyphrase_counts = {keyphrase: 0 for keyphrase in keyphrases}
-file_keyphrase_counts = {}
-files_checked = 0
-files_with_keyphrases = 0
+# Function to generate a list of colors in shades of red, orange, and yellow
+def generate_highlight_colors(num_colors):
+    colors = []
+    for i in range(num_colors):
+        hue = (i * 30) % 360  # Adjust the hue to get different shades
+        color = f"hsl({hue}, 100%, 50%)"
+        colors.append(color)
+    return colors
 
 # Function to process a file
 def process_file(file_path):
@@ -82,6 +58,38 @@ def process_file(file_path):
     
     if file_has_keyphrases:
         files_with_keyphrases += 1
+
+# Get the directory from the user
+user_input = input("Enter the directory path to search for log files (or press Enter to use the current directory): ")
+current_directory = os.path.dirname(os.path.abspath(__file__)) if user_input.strip() == "" else user_input
+
+# Define the path to the config file
+config_file_path = os.path.join(current_directory, "keyphrases_config.json")
+
+# Create the config file with example keyphrases if it does not exist
+if not os.path.exists(config_file_path):
+    create_config_file_with_examples(config_file_path)
+
+# Ask the user if they want to use the config file or enter keyphrases manually
+use_config = input("Do you want enter a custom list of keyphrases instead of using the config file? (yes/no): ").strip().lower()
+
+if use_config == "yes":
+    keyphrases_input = input("Enter the keyphrases to search for, separated by commas: ")
+    keyphrases = [phrase.strip() for phrase in keyphrases_input.split(",")]
+else:
+    keyphrases = load_keyphrases_from_config(config_file_path)
+
+# Generate colors for keyphrases
+keyphrase_colors = {keyphrase: color for keyphrase, color in zip(keyphrases, generate_colors(len(keyphrases)))}
+
+# Get the current timestamp
+timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+
+# Initialize dictionaries and counters
+keyphrase_counts = {keyphrase: 0 for keyphrase in keyphrases}
+file_keyphrase_counts = {}
+files_checked = 0
+files_with_keyphrases = 0
 
 # Iterate over all files in the current directory and subdirectories
 for root, dirs, files in os.walk(current_directory):
@@ -122,15 +130,6 @@ keyphrase_percentages = {keyphrase: (count / files_checked) * 100 if files_check
 # Prepare the output file
 output_filename_txt = f"logcheck_{timestamp}.txt"
 output_filename_html = f"logcheck_{timestamp}.html"
-
-# Function to generate a list of colors in shades of red, orange, and yellow
-def generate_highlight_colors(num_colors):
-    colors = []
-    for i in range(num_colors):
-        hue = (i * 30) % 360  # Adjust the hue to get different shades
-        color = f"hsl({hue}, 100%, 50%)"
-        colors.append(color)
-    return colors
 
 # Generate colors for keyphrases in shades of red, orange, and yellow
 keyphrase_colors = {keyphrase: color for keyphrase, color in zip(keyphrases, generate_highlight_colors(len(keyphrases)))}
@@ -213,7 +212,11 @@ with open(os.path.join(current_directory, output_filename_html), 'w') as output_
     output_file.write(f"<p><strong>Unique Keyphrases Found:</strong> {unique_keyphrases_found}</p>")
     output_file.write(f"<p><strong>Files with Keyphrases:</strong> {files_with_keyphrases} ({percentage_files_with_keyphrases:.2f}%)</p>")
     output_file.write("<ul>")
-    for keyphrase, count in keyphrase_counts.items():
+    
+    # Sort keyphrases by occurrence count in descending order
+    sorted_keyphrases = sorted(keyphrase_counts.items(), key=lambda item: item[1], reverse=True)
+    
+    for keyphrase, count in sorted_keyphrases:
         output_file.write(f"<li><strong>Keyphrase:</strong> <span style='color:{keyphrase_colors[keyphrase]};'>{keyphrase}</span> - <strong>Files:</strong> {count} ({keyphrase_percentages[keyphrase]:.2f}%)</li>")
         # Add the first file link for each keyphrase
         for file_path, keyphrases_dict in file_keyphrase_counts.items():
@@ -227,7 +230,6 @@ with open(os.path.join(current_directory, output_filename_html), 'w') as output_
         output_file.write("<br>")
     output_file.write("</ul>")
     output_file.write("<hr>")
-    
     # Write the results per logfile
     output_file.write("<h2 style='color:#00ff00;'>Detailed Log File Analysis</h2>")
     output_file.write("<button onclick='toggleAll(true)'>Expand All</button>")
