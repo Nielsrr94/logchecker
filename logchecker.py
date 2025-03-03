@@ -177,44 +177,13 @@ with open(os.path.join(current_directory, output_filename_html), 'w') as output_
     output_file.write("<html><head><title>Log Check Report</title>")
     output_file.write("""
     <style>
-        body {
-            background-color: #121212;
-            color: #e0e0e0;
-            font-family: Arial, sans-serif;
-        }
-        .collapsible {
-            background-color: #333;
-            color: #e0e0e0;
-            cursor: pointer;
-            padding: 10px;
-            width: 100%;
-            border: none;
-            text-align: left;
-            outline: none;
-            font-size: 15px;
-        }
-        .active, .collapsible:hover {
-            background-color: #555;
-        }
-        .content {
-            padding: 0 18px;
-            display: none;
-            overflow: hidden;
-            background-color: #1e1e1e;
-        }
-        .highlight {
-            background-color: #444;
-        }
-        a {
-            color: #1e90ff;
-        }
-        .watermark {
-            position: fixed;
-            bottom: 10px;
-            right: 10px;
-            color: #555;
-            font-size: 12px;
-        }
+        body { background-color: #121212; color: #e0e0e0; font-family: Arial, sans-serif; }
+        .collapsible { background-color: #333; color: #e0e0e0; cursor: pointer; padding: 10px; width: 100%; border: none; text-align: left; outline: none; font-size: 15px; }
+        .active, .collapsible:hover { background-color: #555; }
+        .content { padding: 0 18px; display: none; overflow: hidden; background-color: #1e1e1e; }
+        .highlight { background-color: #444; }
+        a { color: #1e90ff; }
+        .watermark { position: fixed; bottom: 10px; right: 10px; color: #555; font-size: 12px; }
     </style>
     <script>
         function toggleAll(expand) {
@@ -229,11 +198,7 @@ with open(os.path.join(current_directory, output_filename_html), 'w') as output_
                 coll[i].addEventListener("click", function() {
                     this.classList.toggle("active");
                     var content = this.nextElementSibling;
-                    if (content.style.display === "block") {
-                        content.style.display = "none";
-                    } else {
-                        content.style.display = "block";
-                    }
+                    content.style.display = content.style.display === "block" ? "none" : "block";
                 });
             }
         });
@@ -244,15 +209,21 @@ with open(os.path.join(current_directory, output_filename_html), 'w') as output_
     report_status_color = "#00ff00" if total_keyphrases_found == 0 else "#ff0000"
     output_file.write(f"<h1 style='text-align:center; color:#ffffff;'>Log Check Report</h1>")
     output_file.write(f"<h2 style='text-align:center; color:#ffffff;'>Verdict: <span style='color:{report_status_color};'>{report_status}</span></h2>")
+    
+    # Write the collapsible metadata section
+    output_file.write("<button class='collapsible'>Metadata</button>")
+    output_file.write("<div class='content'>")
     human_readable_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    output_file.write(f"<p><strong>Report created:</strong> {human_readable_timestamp}</p>")
     milliseconds = int((duration - int(duration)) * 1000)
+    output_file.write(f"<p><strong>Report created:</strong> {human_readable_timestamp}</p>")
     output_file.write(f"<p><strong>Analysis duration:</strong> {int(hours):02}:{int(minutes):02}:{int(seconds):02}.{milliseconds:03}</p>")
     output_file.write(f"<p><strong>Logchecker file used:</strong> <a href='file:///{os.path.abspath(__file__)}'>{os.path.abspath(__file__)}</a></p>")
     output_file.write(f"<p><strong>Directory checked:</strong> <a href='file:///{current_directory}'>{current_directory}</a></p>")
-    output_file.write(f"<p><strong>Keywords checked:</strong> {', '.join(keyphrases)}</p>")
+    output_file.write(f"<p><strong>Filename config used:</strong> <a href='file:///{filenames_config_path}'>{filenames_config_path}</a></p>")
+    output_file.write(f"<p><strong>Keyphrase config used:</strong> {'Custom keyphrases entered by user' if use_custom_keyphrases else f'<a href=\'file:///{keyphrases_config_path}\'>{keyphrases_config_path}</a>'}</p>")
+    output_file.write(f"<p><strong>Keyphrases checked:</strong> {', '.join(keyphrases)}</p>")
+    output_file.write("</div>")
     output_file.write("<hr>")
-    
     # Write the summary of keyphrase occurrences
     total_keyphrases_found = sum(keyphrase_counts.values())
     unique_keyphrases_found = sum(1 for count in keyphrase_counts.values() if count > 0)
@@ -296,7 +267,10 @@ with open(os.path.join(current_directory, output_filename_html), 'w') as output_
         if any(len(lines) > 0 for lines in keyphrases_dict.values()):
             keyphrases_found = [keyphrase for keyphrase, lines in keyphrases_dict.items() if lines]
             keyphrases_summary = " - ".join([f"<span style='color:{keyphrase_colors[keyphrase]};'>{keyphrase}</span>" for keyphrase in keyphrases_found])
-            output_file.write(f"<button class='collapsible'>Logfile #{result_number} - Keyphrases: {keyphrases_summary}</button>")
+            most_frequent_keyphrase = max(keyphrases_dict, key=lambda k: len(keyphrases_dict[k]))
+            keyphrases_summary = keyphrases_summary.replace(f"<span style='color:{keyphrase_colors[most_frequent_keyphrase]};'>{most_frequent_keyphrase}</span>", f"<strong><span style='color:{keyphrase_colors[most_frequent_keyphrase]};'>{most_frequent_keyphrase}</span></strong>")
+            background_color = "#444" if result_number % 2 == 0 else "#555"
+            output_file.write(f"<button class='collapsible' style='background-color:{background_color};'>Logfile #{result_number} - Keyphrases: {keyphrases_summary}</button>")
             output_file.write("<div class='content'>")
             if " -> " in file_path:
                 zip_path, internal_file = file_path.split(" -> ")
@@ -320,12 +294,6 @@ with open(os.path.join(current_directory, output_filename_html), 'w') as output_
             output_file.write("</div>")
             result_number += 1
     
-    for keyphrase, result_num in max_occurrence_result.items():
-        if result_num:
-            output_file.write(f"<script>document.querySelectorAll('.collapsible')[{result_num - 1}].classList.add('highlight');</script>")
-            output_file.write(f"<script>document.querySelectorAll('.collapsible')[{result_num - 1}].innerHTML += ' - <strong>Most occurrences of keyphrase: {keyphrase}</strong>';</script>")
-    
-    # Determine the version of the script
     try:
         version = subprocess.check_output(["git", "describe", "--tags"], cwd=script_directory).strip().decode()
     except Exception:
