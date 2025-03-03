@@ -4,8 +4,24 @@ import zipfile
 import json
 import random
 
+# Function to create a config file with example common phrases if it does not exist
+def create_filenames_config(config_path):
+    example_filenames = {
+        "filenames": ["log", "error", "warning"]
+    }
+    with open(config_path, 'w') as config_file:
+        json.dump(example_filenames, config_file, indent=4)
+
+# Function to load common phrases from a config file
+def load_filenames_from_config(config_path):
+    if os.path.exists(config_path):
+        with open(config_path, 'r') as config_file:
+            config_data = json.load(config_file)
+            return config_data.get("filenames", [])
+    return []
+
 # Function to create a config file with example keyphrases if it does not exist
-def create_config_file_with_examples(config_path):
+def create_keyphrases_config(config_path):
     example_keyphrases = {
         "keyphrases": ["error occurred", "failed to start", "warning issued"]
     }
@@ -63,28 +79,20 @@ def process_file(file_path):
 user_input = input("Enter the directory path to search for log files (or press Enter to use the current directory): ")
 current_directory = os.path.dirname(os.path.abspath(__file__)) if user_input.strip() == "" else user_input
 
-# Get the common phrase from the user
-common_phrase = ""
-while not common_phrase:
-    common_phrase = input("Enter the common phrase included in the log files: ").strip()
-    if not common_phrase:
-        print("Common phrase cannot be empty. Please enter a valid common phrase.")
+# Define the path to the config files in the script's directory
+script_directory = os.path.dirname(os.path.abspath(__file__))
+filenames_config_path = os.path.join(script_directory, "filenames_config.json")
+keyphrases_config_path = os.path.join(script_directory, "keyphrases_config.json")
 
-# Define the path to the config file
-config_file_path = os.path.join(current_directory, "keyphrases_config.json")
+# Create the config files with example values if they do not exist
+if not os.path.exists(filenames_config_path):
+    create_filenames_config(filenames_config_path)
+if not os.path.exists(keyphrases_config_path):
+    create_keyphrases_config(keyphrases_config_path)
 
-# Create the config file with example keyphrases if it does not exist
-if not os.path.exists(config_file_path):
-    create_config_file_with_examples(config_file_path)
-
-# Ask the user if they want to use the config file or enter keyphrases manually
-use_config = input("Do you want enter a custom list of keyphrases instead of using the config file? (yes/no): ").strip().lower()
-
-if use_config == "yes":
-    keyphrases_input = input("Enter the keyphrases to search for, separated by commas: ")
-    keyphrases = [phrase.strip() for phrase in keyphrases_input.split(",")]
-else:
-    keyphrases = load_keyphrases_from_config(config_file_path)
+# Load common phrases and keyphrases from the config files
+filenames = load_filenames_from_config(filenames_config_path)
+keyphrases = load_keyphrases_from_config(keyphrases_config_path)
 
 # Generate colors for keyphrases
 keyphrase_colors = {keyphrase: color for keyphrase, color in zip(keyphrases, generate_colors(len(keyphrases)))}
@@ -102,12 +110,12 @@ files_with_keyphrases = 0
 for root, dirs, files in os.walk(current_directory):
     for filename in files:
         file_path = os.path.join(root, filename)
-        if filename.endswith(".txt") and common_phrase in filename and "logcheck" not in filename:
+        if filename.endswith(".log") and any(phrase in filename for phrase in filenames) and "logcheck" not in filename:
             process_file(file_path)
         elif filename.endswith(".zip"):
             with zipfile.ZipFile(file_path, 'r') as zip_ref:
                 for zip_info in zip_ref.infolist():
-                    if zip_info.filename.endswith(".txt") and common_phrase in zip_info.filename:
+                    if zip_info.filename.endswith(".log") and any(phrase in zip_info.filename for phrase in filenames):
                         with zip_ref.open(zip_info) as file:
                             lines = file.readlines()
                             files_checked += 1
