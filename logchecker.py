@@ -4,6 +4,7 @@ import zipfile
 import json
 import random
 import time
+import subprocess
 
 # Function to create a config file with example common phrases if it does not exist
 def create_filenames_config(config_path):
@@ -324,7 +325,13 @@ with open(os.path.join(current_directory, output_filename_html), 'w') as output_
             output_file.write(f"<script>document.querySelectorAll('.collapsible')[{result_num - 1}].classList.add('highlight');</script>")
             output_file.write(f"<script>document.querySelectorAll('.collapsible')[{result_num - 1}].innerHTML += ' - <strong>Most occurrences of keyphrase: {keyphrase}</strong>';</script>")
     
-    output_file.write("<div class='watermark'>Log Checker - by Niels Dobbelaar, EF-465</div>")
+    # Determine the version of the script
+    try:
+        version = subprocess.check_output(["git", "describe", "--tags"], cwd=script_directory).strip().decode()
+    except Exception:
+        version = f"Branch: {subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], cwd=script_directory).strip().decode()}, Date: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    
+    output_file.write(f"<div class='watermark'>Log Checker - by Niels Dobbelaar, EF-465 - Version {version}</div>")
     output_file.write("</body></html>")
 
 # Print that the script has finished and the report location
