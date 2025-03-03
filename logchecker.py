@@ -5,6 +5,9 @@ import json
 import random
 import time
 import subprocess
+import tkinter as tk
+from tkinter import messagebox
+import webbrowser
 
 # Function to create a config file with example common phrases if it does not exist
 def create_filenames_config(config_path):
@@ -78,7 +81,7 @@ def process_file(file_path):
         files_with_keyphrases += 1
 
 # Get the directory from the user
-user_input = input("Enter the directory path to search for log files (or press Enter to use the current directory): ")
+user_input = input("Enter the directory path to search for log files (the report will be generated in this path): ")
 current_directory = os.path.dirname(os.path.abspath(__file__)) if user_input.strip() == "" else user_input
 
 # Define the path to the config files in the script's directory
@@ -96,7 +99,7 @@ if not os.path.exists(keyphrases_config_path):
 filenames = load_filenames_from_config(filenames_config_path)
 
 # Ask the user if they want to use a custom keyphrase list
-use_custom_keyphrases = input("Do you want to use a custom keyphrase list instead of using the config file (less keyphrases improve performance)? (yes/no): ").strip().lower() == "yes"
+use_custom_keyphrases = input("Use custom keyphrase list instead of config file? (yes/no): ").strip().lower() == "yes"
 
 if use_custom_keyphrases:
     custom_keyphrases = input("Enter custom keyphrases separated by commas: ").strip().split(',')
@@ -120,7 +123,7 @@ files_with_keyphrases = 0
 start_time = time.time()
 
 # Print that the script is running
-print("Script is running...")
+print("Scanning Logs for keyphrases (a pop-up will appear once completed)...")
 
 # Iterate over all files in the current directory and subdirectories
 for root, dirs, files in os.walk(current_directory):
@@ -303,7 +306,54 @@ with open(os.path.join(current_directory, output_filename_html), 'w') as output_
     output_file.write(f"<div class='watermark'>Log Checker - by Niels Dobbelaar, EF-465 - Version {version}</div>")
     output_file.write("</body></html>")
 
-# Print that the script has finished and the report location
-print(f"Log check has finished. The report has been generated in the directory: {current_directory}")
-print("The program will close automatically in 5 seconds.")
-time.sleep(5)
+
+    def show_popup():
+        def open_report():
+            webbrowser.open(f"file:///{os.path.join(current_directory, output_filename_html)}")
+            root.destroy()
+            exit()  # Stop the script after showing the popup
+
+        def close_popup():
+            root.destroy()
+            exit()  # Stop the script after showing the popup
+
+        root = tk.Tk()
+        root.withdraw()  # Hide the root window
+
+        popup = tk.Toplevel(root)
+        popup.title("Log Checker")
+        popup.geometry("300x150")
+
+        # Center the popup window
+        popup.update_idletasks()
+        width = popup.winfo_width()
+        height = popup.winfo_height()
+        x = (popup.winfo_screenwidth() // 2) - (width // 2)
+        y = (popup.winfo_screenheight() // 2) - (height // 2)
+        popup.geometry(f'{300}x{150}+{x}+{y}')
+
+        # Bring the popup window to the front
+        popup.attributes('-topmost', True)
+        popup.after_idle(popup.attributes, '-topmost', False)
+
+        label = tk.Label(popup, text="Log check completed!", font=("Segoe UI", 10))
+        label.pack(pady=10)
+
+        verdict_label = tk.Label(popup, text=f" {'No keyphrases found!' if total_keyphrases_found == 0 else 'Keyphrases found!'}", font=("Segoe UI", 10), fg="#00ff00" if total_keyphrases_found == 0 else "#ff0000")
+        verdict_label.pack(pady=5)
+
+        button_frame = tk.Frame(popup)
+        button_frame.pack(pady=5)
+
+        open_button = tk.Button(button_frame, text="Open Report", command=open_report, font=("Segoe UI", 9), width=10)
+        open_button.pack(side=tk.LEFT, padx=5)
+
+        ok_button = tk.Button(button_frame, text="Close", command=close_popup, font=("Segoe UI", 9), width=10)
+        ok_button.pack(side=tk.RIGHT, padx=5)
+
+        # Play a positive alert sound
+        root.bell()
+
+        root.mainloop()
+
+    show_popup()
