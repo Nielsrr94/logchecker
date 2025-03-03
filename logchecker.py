@@ -3,6 +3,7 @@ import datetime
 import zipfile
 import json
 import random
+import time
 
 # Function to create a config file with example common phrases if it does not exist
 def create_filenames_config(config_path):
@@ -92,7 +93,15 @@ if not os.path.exists(keyphrases_config_path):
 
 # Load common phrases and keyphrases from the config files
 filenames = load_filenames_from_config(filenames_config_path)
-keyphrases = load_keyphrases_from_config(keyphrases_config_path)
+
+# Ask the user if they want to use a custom keyphrase list
+use_custom_keyphrases = input("Do you want to use a custom keyphrase list instead of using the config file (less keyphrases improve performance)? (yes/no): ").strip().lower() == "yes"
+
+if use_custom_keyphrases:
+    custom_keyphrases = input("Enter custom keyphrases separated by commas: ").strip().split(',')
+    keyphrases = [keyphrase.strip() for keyphrase in custom_keyphrases]
+else:
+    keyphrases = load_keyphrases_from_config(keyphrases_config_path)
 
 # Generate colors for keyphrases
 keyphrase_colors = {keyphrase: color for keyphrase, color in zip(keyphrases, generate_colors(len(keyphrases)))}
@@ -105,6 +114,12 @@ keyphrase_counts = {keyphrase: 0 for keyphrase in keyphrases}
 file_keyphrase_counts = {}
 files_checked = 0
 files_with_keyphrases = 0
+
+# Capture the start time
+start_time = time.time()
+
+# Print that the script is running
+print("Script is running...")
 
 # Iterate over all files in the current directory and subdirectories
 for root, dirs, files in os.walk(current_directory):
@@ -149,6 +164,12 @@ output_filename_html = f"logcheck_{timestamp}.html"
 # Generate colors for keyphrases in shades of red, orange, and yellow
 keyphrase_colors = {keyphrase: color for keyphrase, color in zip(keyphrases, generate_highlight_colors(len(keyphrases)))}
 
+# Calculate the duration of the analysis
+end_time = time.time()
+duration = end_time - start_time
+hours, remainder = divmod(duration, 3600)
+minutes, seconds = divmod(remainder, 60)
+
 # Write to the HTML file
 with open(os.path.join(current_directory, output_filename_html), 'w') as output_file:
     # Write the header
@@ -186,6 +207,13 @@ with open(os.path.join(current_directory, output_filename_html), 'w') as output_
         a {
             color: #1e90ff;
         }
+        .watermark {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            color: #555;
+            font-size: 12px;
+        }
     </style>
     <script>
         function toggleAll(expand) {
@@ -217,8 +245,10 @@ with open(os.path.join(current_directory, output_filename_html), 'w') as output_
     output_file.write(f"<h2 style='text-align:center; color:#ffffff;'>Verdict: <span style='color:{report_status_color};'>{report_status}</span></h2>")
     human_readable_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     output_file.write(f"<p><strong>Report created:</strong> {human_readable_timestamp}</p>")
-    output_file.write(f"<p><strong>Logchecker file used:</strong> {os.path.abspath(__file__)}</p>")
-    output_file.write(f"<p><strong>Directory checked:</strong> {current_directory}</p>")
+    milliseconds = int((duration - int(duration)) * 1000)
+    output_file.write(f"<p><strong>Analysis duration:</strong> {int(hours):02}:{int(minutes):02}:{int(seconds):02}.{milliseconds:03}</p>")
+    output_file.write(f"<p><strong>Logchecker file used:</strong> <a href='file:///{os.path.abspath(__file__)}'>{os.path.abspath(__file__)}</a></p>")
+    output_file.write(f"<p><strong>Directory checked:</strong> <a href='file:///{current_directory}'>{current_directory}</a></p>")
     output_file.write(f"<p><strong>Keywords checked:</strong> {', '.join(keyphrases)}</p>")
     output_file.write("<hr>")
     
@@ -229,7 +259,6 @@ with open(os.path.join(current_directory, output_filename_html), 'w') as output_
     output_file.write(f"<p><strong>Files Checked:</strong> {files_checked}</p>")
     output_file.write(f"<p><strong>Files with Keyphrases:</strong> {files_with_keyphrases} ({percentage_files_with_keyphrases:.2f}%)</p>")
     output_file.write(f"<p><strong>Unique Keyphrases Found:</strong> {unique_keyphrases_found}/{len(keyphrases)}</p>")
-    output_file.write(f"<p><strong>Total Keyphrase Occurances:</strong> {total_keyphrases_found}</p>")
     output_file.write("<ul>")
     
     # Sort keyphrases by occurrence count in descending order
@@ -237,15 +266,19 @@ with open(os.path.join(current_directory, output_filename_html), 'w') as output_
     
     for keyphrase, count in sorted_keyphrases:
         output_file.write(f"<li><strong>Keyphrase:</strong> <span style='color:{keyphrase_colors[keyphrase]};'>{keyphrase}</span> - <strong>Files:</strong> {count} ({keyphrase_percentages[keyphrase]:.2f}%)</li>")
-        # Add the first file link for each keyphrase
+        # Add the file link with the most occurrences for each keyphrase
+        max_occurrences = 0
+        max_occurrence_file = None
         for file_path, keyphrases_dict in file_keyphrase_counts.items():
-            if keyphrase in keyphrases_dict and keyphrases_dict[keyphrase]:
-                if " -> " in file_path:
-                    zip_path, internal_file = file_path.split(" -> ")
-                    output_file.write(f"<li><strong>First occurrence in file:</strong> <a href='file:///{zip_path}'>{zip_path}</a> -> {internal_file}</li>")
-                else:
-                    output_file.write(f"<li><strong>First occurrence in file:</strong> <a href='file:///{file_path}'>{file_path}</a></li>")
-                break
+            if keyphrase in keyphrases_dict and len(keyphrases_dict[keyphrase]) > max_occurrences:
+                max_occurrences = len(keyphrases_dict[keyphrase])
+                max_occurrence_file = file_path
+        if max_occurrence_file:
+            if " -> " in max_occurrence_file:
+                zip_path, internal_file = max_occurrence_file.split(" -> ")
+                output_file.write(f"<li><strong>File with most occurrences:</strong> <a href='file:///{zip_path}'>{zip_path}</a> -> {internal_file}</li>")
+            else:
+                output_file.write(f"<li><strong>File with most occurrences:</strong> <a href='file:///{max_occurrence_file}'>{max_occurrence_file}</a></li>")
         output_file.write("<br>")
     output_file.write("</ul>")
     output_file.write("<hr>")
@@ -291,4 +324,10 @@ with open(os.path.join(current_directory, output_filename_html), 'w') as output_
             output_file.write(f"<script>document.querySelectorAll('.collapsible')[{result_num - 1}].classList.add('highlight');</script>")
             output_file.write(f"<script>document.querySelectorAll('.collapsible')[{result_num - 1}].innerHTML += ' - <strong>Most occurrences of keyphrase: {keyphrase}</strong>';</script>")
     
+    output_file.write("<div class='watermark'>Log Checker - by Niels Dobbelaar, EF-465</div>")
     output_file.write("</body></html>")
+
+# Print that the script has finished and the report location
+print(f"Log check has finished. The report has been generated in the directory: {current_directory}")
+print("The program will close automatically in 5 seconds.")
+time.sleep(5)
