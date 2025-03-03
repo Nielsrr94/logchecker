@@ -220,7 +220,8 @@ with open(os.path.join(current_directory, output_filename_html), 'w') as output_
     output_file.write(f"<p><strong>Logchecker file used:</strong> <a href='file:///{os.path.abspath(__file__)}'>{os.path.abspath(__file__)}</a></p>")
     output_file.write(f"<p><strong>Directory checked:</strong> <a href='file:///{current_directory}'>{current_directory}</a></p>")
     output_file.write(f"<p><strong>Filename config used:</strong> <a href='file:///{filenames_config_path}'>{filenames_config_path}</a></p>")
-    output_file.write(f"<p><strong>Keyphrase config used:</strong> {'Custom keyphrases entered by user' if use_custom_keyphrases else f'<a href=\'file:///{keyphrases_config_path}\'>{keyphrases_config_path}</a>'}</p>")
+    keyphrase_config_used = 'Custom keyphrases entered by user' if use_custom_keyphrases else f"<a href='file:///{keyphrases_config_path}'>{keyphrases_config_path}</a>"
+    output_file.write(f"<p><strong>Keyphrase config used:</strong> {keyphrase_config_used}</p>")
     output_file.write(f"<p><strong>Keyphrases checked:</strong> {', '.join(keyphrases)}</p>")
     output_file.write("</div>")
     output_file.write("<hr>")
