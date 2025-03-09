@@ -162,7 +162,6 @@ percentage_files_with_keyphrases = (files_with_keyphrases / files_checked) * 100
 keyphrase_percentages = {keyphrase: (count / files_checked) * 100 if files_checked > 0 else 0 for keyphrase, count in keyphrase_counts.items()}
 
 # Prepare the output file
-output_filename_txt = f"logcheck_{timestamp}.txt"
 output_filename_html = f"logcheck_{timestamp}.html"
 
 # Generate colors for keyphrases in shades of red, orange, and yellow
