@@ -227,7 +227,7 @@ with open(html_file_path, 'w') as output_file:
         body { background-color: #121212; color: #e0e0e0; font-family: Arial, sans-serif; }
         .collapsible { background-color: #333; color: #e0e0e0; cursor: pointer; padding: 10px; width: 100%; border: none; text-align: left; outline: none; font-size: 15px; }
         .active, .collapsible:hover { background-color: #555; }
-        .content { padding: 0 18px; display: block; overflow: hidden; background-color: #1e1e1e; } /* Changed display to block */
+        .content { padding: 0 18px; display: none; overflow: hidden; background-color: #1e1e1e; }
         .highlight { background-color: #444; }
         a { color: #1e90ff; }
         .watermark { position: fixed; bottom: 10px; right: 10px; color: #555; font-size: 12px; }
@@ -237,6 +237,7 @@ with open(html_file_path, 'w') as output_file:
             body { background-color: #ffffff; color: #000000; }
             .collapsible, .watermark, button { display: none; }
             h1, h2 { page-break-after: avoid; }
+            .content { display: block !important; } /* Ensure expanded view is printed */
         }
     </style>
     <script>
@@ -251,12 +252,17 @@ with open(html_file_path, 'w') as output_file:
             }
             var expand = !allExpanded;
             for (var i = 0; i < contents.length; i++) {
-                contents[i].style.display = expand ? "block" : "block"; /* Ensures all fields are visible */
+                contents[i].style.display = expand ? "block" : "none";
             }
             document.getElementById(buttonId).innerText = expand ? "Collapse All" : "Expand All";
         }
 
         function exportToPDF() {
+            // Expand all sections before printing
+            var contents = document.getElementsByClassName("content");
+            for (var i = 0; i < contents.length; i++) {
+                contents[i].style.display = "block";
+            }
             window.print();
         }
 
@@ -266,7 +272,7 @@ with open(html_file_path, 'w') as output_file:
                 coll[i].addEventListener("click", function() {
                     this.classList.toggle("active");
                     var content = this.nextElementSibling;
-                    content.style.display = content.style.display === "block" ? "block" : "block"; /* Ensures visibility */
+                    content.style.display = content.style.display === "block" ? "none" : "block";
                 });
             }
         });
@@ -317,20 +323,44 @@ with open(html_file_path, 'w') as output_file:
 
     for keyphrase, count in sorted_keyphrases:
         output_file.write(f"<li><strong>Keyphrase:</strong> <span style='color:{keyphrase_colors[keyphrase]};'>{keyphrase}</span> - <strong>Files:</strong> {count} ({keyphrase_percentages[keyphrase]:.2f}%)</li>")
-        # Add the file link with the most occurrences for each keyphrase
+        
+        # Find the file with the most occurrences of this keyphrase
         max_occurrences = 0
-        max_occurrence_file = None
+        file_with_most_occurrences = None
         for file_path, keyphrases_dict in file_keyphrase_counts.items():
-            if keyphrase in keyphrases_dict and len(keyphrases_dict[keyphrase]) > max_occurrences:
-                max_occurrences = len(keyphrases_dict[keyphrase])
-                max_occurrence_file = file_path
-        if max_occurrence_file:
-            if " -> " in max_occurrence_file:
-                zip_path, internal_file = max_occurrence_file.split(" -> ")
-                output_file.write(f"<li><strong>File with most occurrences:</strong> <a href='file:///{zip_path}'>{zip_path}</a> -> {internal_file}</li>")
-            else:
-                output_file.write(f"<li><strong>File with most occurrences:</strong> <a href='file:///{max_occurrence_file}'>{max_occurrence_file}</a></li>")
-        output_file.write("<br>")
+            if keyphrase in keyphrases_dict:
+                occurrences = len(keyphrases_dict[keyphrase])
+                if occurrences > max_occurrences:
+                    max_occurrences = occurrences
+                    file_with_most_occurrences = file_path
+
+        if file_with_most_occurrences:
+            output_file.write(f"<p><strong>File with most occurrences:</strong> <a href='file:///{file_with_most_occurrences}'>{file_with_most_occurrences}</a> ({max_occurrences} occurrences)</p>")
+            
+            # Print 20 lines before and after the keyphrase for the first occurrence
+            lines_to_display = 20
+            if keyphrase in file_keyphrase_counts[file_with_most_occurrences]:
+                occurrences = file_keyphrase_counts[file_with_most_occurrences][keyphrase]
+                if occurrences:
+                    first_occurrence_line = occurrences[0][0]  # Line number of the first occurrence
+                    with open(file_with_most_occurrences, 'r') as file:
+                        all_lines = file.readlines()
+                        start_line = max(0, first_occurrence_line - lines_to_display - 1)
+                        end_line = min(len(all_lines), first_occurrence_line + lines_to_display)
+                        
+                        # Make the block collapsible
+                        output_file.write("<button class='collapsible'>View Context (20 lines before and after)</button>")
+                        output_file.write("<div class='content'>")
+                        output_file.write("<pre style='background-color:#1e1e1e; color:#e0e0e0; padding:10px;'>")
+                        for i in range(start_line, end_line):
+                            line_content = all_lines[i].strip()
+                            if keyphrase in line_content:
+                                highlighted_line = line_content.replace(keyphrase, f"<span style='color:{keyphrase_colors[keyphrase]};'>{keyphrase}</span>")
+                                output_file.write(f"<strong>Line {i + 1}:</strong> {highlighted_line}<br>")
+                            else:
+                                output_file.write(f"Line {i + 1}: {line_content}<br>")
+                        output_file.write("</pre>")
+                        output_file.write("</div>")
     output_file.write("</ul>")
     output_file.write("<hr>")
 
@@ -341,27 +371,19 @@ with open(html_file_path, 'w') as output_file:
     output_file.write("<button id='detailedToggle' onclick='toggleSection(\"detailed-content\", \"detailedToggle\")'>Expand All</button>")
 
     result_number = 1
-    max_occurrences = {keyphrase: 0 for keyphrase in keyphrases}
-    max_occurrence_result = {keyphrase: None for keyphrase in keyphrases}
-
     for file_path, keyphrases_dict in file_keyphrase_counts.items():
         if any(len(lines) > 0 for lines in keyphrases_dict.values()):
             keyphrases_found = [keyphrase for keyphrase, lines in keyphrases_dict.items() if lines]
             keyphrases_summary = " - ".join([f"<span style='color:{keyphrase_colors[keyphrase]};'>{keyphrase}</span>" for keyphrase in keyphrases_found])
-            most_frequent_keyphrase = max(keyphrases_dict, key=lambda k: len(keyphrases_dict[k]))
-            keyphrases_summary = keyphrases_summary.replace(f"<span style='color:{keyphrase_colors[most_frequent_keyphrase]};'>{most_frequent_keyphrase}</span>", f"<strong><span style='color:{keyphrase_colors[most_frequent_keyphrase]};'>{most_frequent_keyphrase}</span></strong>")
             background_color = "#444" if result_number % 2 == 0 else "#555"
             output_file.write(f"<button class='collapsible' style='background-color:{background_color};'>Logfile #{result_number} - Keyphrases: {keyphrases_summary}</button>")
             output_file.write("<div class='content detailed-content'>")
-            output_file.write(f"<h3>Detailed Results for Logfile #{result_number}</h3>")  # Add title for individual detailed results
+            output_file.write(f"<h3>Detailed Results for Logfile #{result_number}</h3>")
             if " -> " in file_path:
                 zip_path, internal_file = file_path.split(" -> ")
                 output_file.write(f"<p><strong>File:</strong> <a href='file:///{zip_path}'>{zip_path}</a> -> {internal_file}</p>")
             else:
                 output_file.write(f"<p><strong>File:</strong> <a href='file:///{file_path}'>{file_path}</a></p>")
-            # Add summary of which keywords were found
-            found_keyphrases = [keyphrase for keyphrase, lines in keyphrases_dict.items() if lines]
-            output_file.write(f"<p><strong>Keyphrases Found:</strong> {', '.join(found_keyphrases)}</p>")
             for keyphrase, lines in keyphrases_dict.items():
                 if lines:
                     output_file.write(f"<p><strong>Keyphrase:</strong> {keyphrase} - <strong>Occurrences:</strong> {len(lines)}</p>")
@@ -370,9 +392,6 @@ with open(html_file_path, 'w') as output_file:
                         highlighted_line = line.replace(keyphrase, f"<span style='color:{keyphrase_colors[keyphrase]};'>{keyphrase}</span>")
                         output_file.write(f"<li><strong>Line {line_num}:</strong> {highlighted_line}</li>")
                     output_file.write("</ul>")
-                    if len(lines) > max_occurrences[keyphrase]:
-                        max_occurrences[keyphrase] = len(lines)
-                        max_occurrence_result[keyphrase] = result_number
             output_file.write("</div>")
             result_number += 1
 
@@ -388,20 +407,19 @@ def show_popup():
     def open_report():
         webbrowser.open(f"file:///{os.path.join(current_directory, output_filename_html)}")
         root.destroy()
-        exit()  # Stop the script after showing the popup
+        exit()
 
     def close_popup():
         root.destroy()
-        exit()  # Stop the script after showing the popup
+        exit()
 
     root = tk.Tk()
-    root.withdraw()  # Hide the root window
+    root.withdraw()
 
     popup = tk.Toplevel(root)
     popup.title("Log Checker")
     popup.geometry("300x150")
 
-    # Center the popup window
     popup.update_idletasks()
     width = popup.winfo_width()
     height = popup.winfo_height()
@@ -409,7 +427,6 @@ def show_popup():
     y = (popup.winfo_screenheight() // 2) - (height // 2)
     popup.geometry(f'{300}x{150}+{x}+{y}')
 
-    # Bring the popup window to the front
     popup.attributes('-topmost', True)
     popup.after_idle(popup.attributes, '-topmost', False)
 
@@ -428,9 +445,7 @@ def show_popup():
     ok_button = tk.Button(button_frame, text="Close", command=close_popup, font=("Segoe UI", 9), width=10)
     ok_button.pack(side=tk.RIGHT, padx=5)
 
-    # Play a positive alert sound
     root.bell()
-
     root.mainloop()
 
 show_popup()
