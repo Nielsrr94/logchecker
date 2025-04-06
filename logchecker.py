@@ -459,11 +459,6 @@ with open(html_file_path, 'w') as output_file:
             output_file.write("</div>")
             result_number += 1
 
-    try:
-        version = subprocess.check_output(["git", "describe", "--tags"], cwd=script_directory).strip().decode()
-    except Exception:
-        version = f"Branch: {subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], cwd=script_directory).strip().decode()}, Date: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-
     output_file.write(f"<div class='watermark'>Log Checker | Niels Dobbelaar | EF-465 </div>")
     output_file.write("</body></html>")
 
