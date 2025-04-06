@@ -89,14 +89,21 @@ current_directory = os.path.dirname(os.path.abspath(__file__)) if user_input.str
 use_custom_date_range = input("Do you want to use a custom date range for the search? (yes/no): ").strip().lower() == "yes"
 
 if use_custom_date_range:
-    start_date_input = input("Enter the start date (YYYY-MM-DD): ")
-    end_date_input = input("Enter the end date (YYYY-MM-DD): ")
-    try:
-        start_date = datetime.datetime.strptime(start_date_input, "%Y-%m-%d")
-        end_date = datetime.datetime.strptime(end_date_input, "%Y-%m-%d")
-    except ValueError:
-        print("Invalid date format. Please use YYYY-MM-DD.")
-        exit()
+    while True:
+        try:
+            start_date_input = input("Enter the start date (YYYY-MM-DD): ").strip()
+            end_date_input = input("Enter the end date (YYYY-MM-DD): ").strip()
+            start_date = datetime.datetime.strptime(start_date_input, "%Y-%m-%d")
+            end_date = datetime.datetime.strptime(end_date_input, "%Y-%m-%d")
+            if start_date > end_date:
+                print("Error: Start date cannot be after the end date. Please try again.")
+                continue
+            if end_date > datetime.datetime.now():
+                print("Error: End date cannot be in the future. Please try again.")
+                continue
+            break
+        except ValueError:
+            print("Error: Invalid date format. Please use YYYY-MM-DD.")
 else:
     start_date = None
     end_date = None
@@ -148,7 +155,16 @@ for root, dirs, files in os.walk(current_directory):
         file_path = os.path.join(root, filename)
         if filename.endswith(".log") and any(phrase in filename for phrase in filenames) and "logcheck" not in filename:
             if start_date and end_date:
-                file_mod_time = datetime.datetime.fromtimestamp(os.path.getmtime(file_path))
+                if " -> " in file_path:
+                    zip_path, internal_file = file_path.split(" -> ")
+                    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                        zip_info = next((info for info in zip_ref.infolist() if info.filename == internal_file), None)
+                        if zip_info:
+                            file_mod_time = datetime.datetime(*zip_info.date_time)
+                        else:
+                            continue
+                else:
+                    file_mod_time = datetime.datetime.fromtimestamp(os.path.getmtime(file_path))
                 if start_date <= file_mod_time <= end_date:
                     process_file(file_path)
             else:
@@ -329,6 +345,27 @@ with open(html_file_path, 'w') as output_file:
         file_with_most_occurrences = None
         for file_path, keyphrases_dict in file_keyphrase_counts.items():
             if keyphrase in keyphrases_dict:
+                # Check if the file is within the date range
+                if start_date and end_date:
+                    try:
+                        if " -> " in file_path:
+                            # Handle zip files
+                            zip_path, internal_file = file_path.split(" -> ")
+                            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                                zip_info = next((info for info in zip_ref.infolist() if info.filename == internal_file), None)
+                                if zip_info:
+                                    file_mod_time = datetime.datetime(*zip_info.date_time)
+                                else:
+                                    continue
+                        else:
+                            # Handle regular files
+                            file_mod_time = datetime.datetime.fromtimestamp(os.path.getmtime(file_path))
+                        
+                        if not (start_date <= file_mod_time <= end_date):
+                            continue
+                    except Exception as e:
+                        print(f"Error processing file modification time for {file_path}: {e}")
+                        continue
                 occurrences = len(keyphrases_dict[keyphrase])
                 if occurrences > max_occurrences:
                     max_occurrences = occurrences
@@ -343,24 +380,51 @@ with open(html_file_path, 'w') as output_file:
                 occurrences = file_keyphrase_counts[file_with_most_occurrences][keyphrase]
                 if occurrences:
                     first_occurrence_line = occurrences[0][0]  # Line number of the first occurrence
-                    with open(file_with_most_occurrences, 'r') as file:
-                        all_lines = file.readlines()
-                        start_line = max(0, first_occurrence_line - lines_to_display - 1)
-                        end_line = min(len(all_lines), first_occurrence_line + lines_to_display)
-                        
-                        # Make the block collapsible
-                        output_file.write("<button class='collapsible'>View Context (20 lines before and after)</button>")
-                        output_file.write("<div class='content'>")
-                        output_file.write("<pre style='background-color:#1e1e1e; color:#e0e0e0; padding:10px;'>")
-                        for i in range(start_line, end_line):
-                            line_content = all_lines[i].strip()
-                            if keyphrase in line_content:
-                                highlighted_line = line_content.replace(keyphrase, f"<span style='color:{keyphrase_colors[keyphrase]};'>{keyphrase}</span>")
-                                output_file.write(f"<strong>Line {i + 1}:</strong> {highlighted_line}<br>")
-                            else:
-                                output_file.write(f"Line {i + 1}: {line_content}<br>")
-                        output_file.write("</pre>")
-                        output_file.write("</div>")
+                    if " -> " in file_with_most_occurrences:
+                        # Handle zip files
+                        zip_path, internal_file = file_with_most_occurrences.split(" -> ")
+                        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                            with zip_ref.open(internal_file) as file:
+                                all_lines = file.readlines()
+                                all_lines = [line.decode('utf-8').strip() for line in all_lines]
+                                start_line = max(0, first_occurrence_line - lines_to_display - 1)
+                                end_line = min(len(all_lines), first_occurrence_line + lines_to_display)
+                                
+                                # Make the block collapsible
+                                output_file.write("<button class='collapsible'>View Context (20 lines before and after)</button>")
+                                output_file.write("<div class='content'>")
+                                output_file.write("<pre style='background-color:#1e1e1e; color:#e0e0e0; padding:10px;'>")
+                                for i in range(start_line, end_line):
+                                    line_content = all_lines[i]
+                                    if keyphrase in line_content:
+                                        highlighted_line = line_content.replace(keyphrase, f"<span style='color:{keyphrase_colors[keyphrase]};'>{keyphrase}</span>")
+                                        output_file.write(f"<strong>Line {i + 1}:</strong> {highlighted_line}<br>")
+                                    else:
+                                        output_file.write(f"Line {i + 1}: {line_content}<br>")
+                                output_file.write("</pre>")
+                                output_file.write("</div>")
+                    else:
+                        # Handle regular files
+                        with open(file_with_most_occurrences, 'r') as file:
+                            all_lines = file.readlines()
+                            start_line = max(0, first_occurrence_line - lines_to_display - 1)
+                            end_line = min(len(all_lines), first_occurrence_line + lines_to_display)
+                            
+                            # Make the block collapsible
+                            output_file.write("<button class='collapsible'>View Context (20 lines before and after)</button>")
+                            output_file.write("<div class='content'>")
+                            output_file.write("<pre style='background-color:#1e1e1e; color:#e0e0e0; padding:10px;'>")
+                            for i in range(start_line, end_line):
+                                line_content = all_lines[i].strip()
+                                if keyphrase in line_content:
+                                    highlighted_line = line_content.replace(keyphrase, f"<span style='color:{keyphrase_colors[keyphrase]};'>{keyphrase}</span>")
+                                    output_file.write(f"<strong>Line {i + 1}:</strong> {highlighted_line}<br>")
+                                else:
+                                    output_file.write(f"Line {i + 1}: {line_content}<br>")
+                            output_file.write("</pre>")
+                            output_file.write("</div>")
+        # Add a spacer between results for each keyphrase
+        output_file.write("<hr style='border: 1px solid #555;'>")
     output_file.write("</ul>")
     output_file.write("<hr>")
 
