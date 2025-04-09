@@ -165,7 +165,7 @@ for root, dirs, files in os.walk(current_directory):
                             continue
                 else:
                     file_mod_time = datetime.datetime.fromtimestamp(os.path.getmtime(file_path))
-                if start_date <= file_mod_time <= end_date:
+                if start_date <= file_mod_time.replace(tzinfo=None) <= (end_date + datetime.timedelta(days=1)):
                     process_file(file_path)
             else:
                 process_file(file_path)
@@ -175,7 +175,7 @@ for root, dirs, files in os.walk(current_directory):
                     if zip_info.filename.endswith(".log") and any(phrase in zip_info.filename for phrase in filenames):
                         if start_date and end_date:
                             file_mod_time = datetime.datetime(*zip_info.date_time)
-                            if start_date <= file_mod_time <= end_date:
+                            if start_date <= file_mod_time.replace(tzinfo=None) <= (end_date + datetime.timedelta(days=1)):
                                 with zip_ref.open(zip_info) as file:
                                     lines = file.readlines()
                                     files_checked += 1
@@ -322,6 +322,14 @@ with open(html_file_path, 'w') as output_file:
     keyphrase_config_used = 'Custom keyphrases entered by user' if use_custom_keyphrases else f"<a href='file:///{keyphrases_config_path}'>{keyphrases_config_path}</a>"
     output_file.write(f"<p><strong>Keyphrase config used:</strong> {keyphrase_config_used}</p>")
     output_file.write(f"<p><strong>Keyphrases checked:</strong> {', '.join(keyphrases)}</p>")
+    
+    # Add a list of all file paths checked
+    output_file.write(f"<p><strong>Files checked:</strong> ({files_checked})</p>")
+    output_file.write("<ul>")
+    for file_path in file_keyphrase_counts.keys():
+        output_file.write(f"<li><a href='file:///{file_path}'>{file_path}</a></li>")
+    output_file.write("</ul>")
+    
     output_file.write("</div>")
     output_file.write("<hr>")
 
@@ -461,6 +469,23 @@ with open(html_file_path, 'w') as output_file:
 
     output_file.write(f"<div class='watermark'>Log Checker | Niels Dobbelaar | EF-465 </div>")
     output_file.write("</body></html>")
+
+    # Write a simple JSON file with keyphrases and the files they were found in
+    output_filename_json = f"logcheck_{timestamp}.json"
+    json_file_path = os.path.join(current_directory, output_filename_json)
+
+    keyphrase_summary = {}
+    for keyphrase, count in keyphrase_counts.items():
+        if count > 0:  # Only include keyphrases that were actually found
+            keyphrase_summary[keyphrase] = []
+            for file_path, keyphrases_dict in file_keyphrase_counts.items():
+                if keyphrase in keyphrases_dict and keyphrases_dict[keyphrase]:
+                    keyphrase_summary[keyphrase].append(file_path)
+
+    with open(json_file_path, 'w') as json_file:
+        json.dump(keyphrase_summary, json_file, indent=4)
+
+    print(f"Keyphrase summary JSON file created: {json_file_path}")
 
 def show_popup():
     def open_report():
