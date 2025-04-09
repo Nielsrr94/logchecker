@@ -42,6 +42,22 @@ def load_keyphrases_from_config(config_path):
             return config_data.get("keyphrases", [])
     return []
 
+# Function to create a config file with example zip names if it does not exist
+def create_zipnames_config(config_path):
+    example_zipnames = {
+        "zipnames": ["archive", "logs", "backup"]
+    }
+    with open(config_path, 'w') as config_file:
+        json.dump(example_zipnames, config_file, indent=4)
+
+# Function to load zip names from a config file
+def load_zipnames_from_config(config_path):
+    if os.path.exists(config_path):
+        with open(config_path, 'r') as config_file:
+            config_data = json.load(config_file)
+            return config_data.get("zipnames", [])
+    return []
+
 # Function to generate a list of colors
 def generate_colors(num_colors):
     colors = []
@@ -63,6 +79,8 @@ def generate_highlight_colors(num_colors):
 def process_file(file_path):
     global files_checked, files_with_keyphrases
     files_checked += 1
+    print("Logfile found! Searching for keyphrases...")
+    
     file_keyphrase_counts[file_path] = {keyphrase: [] for keyphrase in keyphrases}
     with open(file_path, 'r') as file:
         lines = file.readlines()
@@ -80,6 +98,9 @@ def process_file(file_path):
     
     if file_has_keyphrases:
         files_with_keyphrases += 1
+        print("   *****Keyphrase found in logfile: ", keyphrase)
+    print("-----------------------------------------------------------------------")
+
 
 # Get the directory from the user
 user_input = input("Enter the directory path to search for log files (the report will be generated in this path): ")
@@ -112,15 +133,19 @@ else:
 script_directory = os.path.dirname(os.path.abspath(__file__))
 filenames_config_path = os.path.join(script_directory, "filenames_config.json")
 keyphrases_config_path = os.path.join(script_directory, "keyphrases_config.json")
+zipnames_config_path = os.path.join(script_directory, "zipnames_config.json")
 
 # Create the config files with example values if they do not exist
 if not os.path.exists(filenames_config_path):
     create_filenames_config(filenames_config_path)
 if not os.path.exists(keyphrases_config_path):
     create_keyphrases_config(keyphrases_config_path)
+if not os.path.exists(zipnames_config_path):
+    create_zipnames_config(zipnames_config_path)
 
 # Load common phrases and keyphrases from the config files
 filenames = load_filenames_from_config(filenames_config_path)
+zipnames = load_zipnames_from_config(zipnames_config_path)
 
 # Ask the user if they want to use a custom keyphrase list
 use_custom_keyphrases = input("Use custom keyphrase list instead of config file? (yes/no): ").strip().lower() == "yes"
@@ -147,7 +172,10 @@ files_with_keyphrases = 0
 start_time = time.time()
 
 # Print that the script is running
-print("Scanning Logs for keyphrases (a pop-up will appear once completed)...")
+print("***********************************************************************")
+print("* scanning for log files... This might take a while, please wait...   *")
+print("* A pop-up will appear once the scan is completed.                    *")
+print("***********************************************************************")
 
 # Iterate over all files in the current directory and subdirectories
 for root, dirs, files in os.walk(current_directory):
@@ -169,7 +197,7 @@ for root, dirs, files in os.walk(current_directory):
                     process_file(file_path)
             else:
                 process_file(file_path)
-        elif filename.endswith(".zip"):
+        elif filename.endswith(".zip") and any(phrase in filename for phrase in zipnames):
             with zipfile.ZipFile(file_path, 'r') as zip_ref:
                 for zip_info in zip_ref.infolist():
                     if zip_info.filename.endswith(".log") and any(phrase in zip_info.filename for phrase in filenames):
@@ -485,8 +513,6 @@ with open(html_file_path, 'w') as output_file:
     with open(json_file_path, 'w') as json_file:
         json.dump(keyphrase_summary, json_file, indent=4)
 
-    print(f"Keyphrase summary JSON file created: {json_file_path}")
-
 def show_popup():
     def open_report():
         webbrowser.open(f"file:///{os.path.join(current_directory, output_filename_html)}")
@@ -531,5 +557,5 @@ def show_popup():
 
     root.bell()
     root.mainloop()
-
+print("logcheck completed!")
 show_popup()

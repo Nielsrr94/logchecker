@@ -2,6 +2,7 @@
     "filenames": [
         "log",
         "error",
-        "warning"
+        "warning",
+        "yepitsme"
     ]
 }
