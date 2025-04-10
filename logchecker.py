@@ -79,8 +79,7 @@ def generate_highlight_colors(num_colors):
 def process_file(file_path):
     global files_checked, files_with_keyphrases
     files_checked += 1
-    print("Logfile found! Searching for keyphrases...")
-    
+
     file_keyphrase_counts[file_path] = {keyphrase: [] for keyphrase in keyphrases}
     with open(file_path, 'r') as file:
         lines = file.readlines()
@@ -98,7 +97,9 @@ def process_file(file_path):
     
     if file_has_keyphrases:
         files_with_keyphrases += 1
-        print("   *****Keyphrase found in logfile: ", keyphrase)
+        print("   *****Keyphrases found in logfile: ", unique_keyphrases)
+    else:
+        print("   *****No keyphrases found in logfile")
     print("-----------------------------------------------------------------------")
 
 
@@ -182,6 +183,7 @@ for root, dirs, files in os.walk(current_directory):
     for filename in files:
         file_path = os.path.join(root, filename)
         if filename.endswith(".log") and any(phrase in filename for phrase in filenames) and "logcheck" not in filename:
+            print("Logfile found! Searching for keyphrases...")
             if start_date and end_date:
                 if " -> " in file_path:
                     zip_path, internal_file = file_path.split(" -> ")
@@ -198,6 +200,7 @@ for root, dirs, files in os.walk(current_directory):
             else:
                 process_file(file_path)
         elif filename.endswith(".zip") and any(phrase in filename for phrase in zipnames):
+            print("Logfile found! Searching for keyphrases...")
             with zipfile.ZipFile(file_path, 'r') as zip_ref:
                 for zip_info in zip_ref.infolist():
                     if zip_info.filename.endswith(".log") and any(phrase in zip_info.filename for phrase in filenames):
