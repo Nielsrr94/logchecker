@@ -177,14 +177,17 @@ print("***********************************************************************")
 print("* scanning for log files... This might take a while, please wait...   *")
 print("* A pop-up will appear once the scan is completed.                    *")
 print("***********************************************************************")
+print()
 
 # Iterate over all files in the current directory and subdirectories
 for root, dirs, files in os.walk(current_directory):
+    print ("fetching files from directory...")
     for filename in files:
         file_path = os.path.join(root, filename)
         if filename.endswith(".log") and any(phrase in filename for phrase in filenames) and "logcheck" not in filename:
-            print("Logfile found! Searching for keyphrases...")
+            
             if start_date and end_date:
+                print("scanning for logs in date range...")
                 if " -> " in file_path:
                     zip_path, internal_file = file_path.split(" -> ")
                     with zipfile.ZipFile(zip_path, 'r') as zip_ref:
@@ -196,17 +199,26 @@ for root, dirs, files in os.walk(current_directory):
                 else:
                     file_mod_time = datetime.datetime.fromtimestamp(os.path.getmtime(file_path))
                 if start_date <= file_mod_time.replace(tzinfo=None) <= (end_date + datetime.timedelta(days=1)):
+                    print("New Logfile found in date range! (",files_checked+1,")")
+                    print("***** Filepath:", file_path)
+                    print("***** Filename:", filename)
                     process_file(file_path)
             else:
+                print("New Logfile found! (",files_checked+1,")")
+                print("***** Filepath:", file_path)
+                print("***** Filename:", filename)
                 process_file(file_path)
         elif filename.endswith(".zip") and any(phrase in filename for phrase in zipnames):
-            print("Logfile found! Searching for keyphrases...")
             with zipfile.ZipFile(file_path, 'r') as zip_ref:
                 for zip_info in zip_ref.infolist():
-                    if zip_info.filename.endswith(".log") and any(phrase in zip_info.filename for phrase in filenames):
+                    if zip_info.filename.endswith(".log") and any(phrase in zip_info.filename for phrase in filenames)and "logcheck" not in filename:
                         if start_date and end_date:
+                            print("scanning for logs in date range...")
                             file_mod_time = datetime.datetime(*zip_info.date_time)
                             if start_date <= file_mod_time.replace(tzinfo=None) <= (end_date + datetime.timedelta(days=1)):
+                                print("New Logfile found in date range! (",files_checked+1,")")
+                                print("***** Filepath:", file_path)
+                                print("***** Filename:", zip_info.filename)
                                 with zip_ref.open(zip_info) as file:
                                     lines = file.readlines()
                                     files_checked += 1
@@ -225,7 +237,15 @@ for root, dirs, files in os.walk(current_directory):
                                                 unique_keyphrases.add(keyphrase)
                                     if file_has_keyphrases:
                                         files_with_keyphrases += 1
+                                        print("***** Keyphrases found! -  ",unique_keyphrases)
+                                    else:
+                                        print("***** No Keyprhases found.")
+                                    print("-----------------------------------------------------------------------")
+                                            
                         else:
+                            print("New Logfile found! (",files_checked+1,")")
+                            print("***** Filepath:", file_path)
+                            print("***** Filename:", zip_info.filename)
                             with zip_ref.open(zip_info) as file:
                                 lines = file.readlines()
                                 files_checked += 1
@@ -244,6 +264,10 @@ for root, dirs, files in os.walk(current_directory):
                                             unique_keyphrases.add(keyphrase)
                                 if file_has_keyphrases:
                                     files_with_keyphrases += 1
+                                    print("***** Keyphrases found! - ",unique_keyphrases)
+                                else:
+                                    print("***** No Keyprhases found.")
+                                print("-----------------------------------------------------------------------")
 
 # Calculate total keyphrases found
 total_keyphrases_found = sum(keyphrase_counts.values())
@@ -560,5 +584,8 @@ def show_popup():
 
     root.bell()
     root.mainloop()
-print("logcheck completed!")
+print()
+print("***********************************************************************")
+print("*                      logcheck completed!                            *")
+print("***********************************************************************")
 show_popup()
